@@ -28,7 +28,7 @@ describe('App Integration', () => {
     
     render(<App />);
     
-    expect(screen.getByText('🏓 DinkTank')).toBeInTheDocument();
+    expect(screen.getByText('DinkTank')).toBeInTheDocument();
 
     // Wait for async loadLeagues to settle
     await waitFor(() => {

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { League, LeagueFormat } from '../types';
 import FormatSelector from './FormatSelector';
+import PickleballIcon from './PickleballIcon';
 
 interface LeagueSelectorProps {
   leagues: League[];
@@ -122,7 +123,7 @@ const LeagueSelector: React.FC<LeagueSelectorProps> = ({
     return (
       <div className="landing-page">
         <div className="landing-hero">
-          <div className="landing-icon">🏓</div>
+          <div className="landing-icon"><PickleballIcon size={64} /></div>
           <h1>Welcome to DinkTank</h1>
           <p className="landing-subtitle">
             Run pickleball sessions, ladders and open play in seconds.

@@ -13,6 +13,7 @@ import {
 import { api } from './api/client';
 import { League, Player, Court, Round, Assignment, LeagueFormat } from './types';
 import CourtIcon from './components/CourtIcon';
+import PickleballIcon from './components/PickleballIcon';
 
 function App() {
   const [leagues, setLeagues] = useState<League[]>([]);
@@ -735,7 +736,7 @@ function App() {
   return (
     <div className={`app ${darkMode ? 'dark' : ''}`}>
       <header>
-        <h1>🏓 DinkTank</h1>
+        <h1><PickleballIcon size={28} /> DinkTank</h1>
         <button
           className="theme-toggle"
           onClick={() => setDarkMode(!darkMode)}
