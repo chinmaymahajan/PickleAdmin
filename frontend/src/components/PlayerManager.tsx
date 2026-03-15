@@ -41,6 +41,7 @@ const PlayerManager: React.FC<PlayerManagerProps> = ({
     e.preventDefault();
     setError(null);
     if (!playerName.trim()) { setError('Player name cannot be empty'); return; }
+    if (players.length >= 100) { setError('Maximum of 100 players per session reached'); return; }
     setIsSubmitting(true);
     shouldRefocus.current = true;
     try {
@@ -92,7 +93,14 @@ const PlayerManager: React.FC<PlayerManagerProps> = ({
           return;
         }
 
-        setImportNames(unique);
+        // Cap import to stay within 100 player limit
+        const slotsAvailable = 100 - players.length;
+        const toImport = unique.slice(0, slotsAvailable);
+        if (toImport.length < unique.length) {
+          setError(`Only importing ${toImport.length} of ${unique.length} players (100 player limit)`);
+        }
+
+        setImportNames(toImport);
         setShowImportPreview(true);
       } catch {
         setError('Failed to read file. Please use .xlsx or .csv format.');

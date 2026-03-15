@@ -1,6 +1,8 @@
 module.exports = {
-  preset: 'ts-jest',
   testEnvironment: 'node',
+  transform: {
+    '^.+\\.ts$': ['ts-jest', { tsconfig: 'tsconfig.json' }],
+  },
   roots: ['<rootDir>/src'],
   // Run serially — integration tests share an in-memory DataStore singleton
   maxWorkers: 1,

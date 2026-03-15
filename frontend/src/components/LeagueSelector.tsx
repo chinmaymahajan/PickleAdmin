@@ -40,6 +40,7 @@ const LeagueSelector: React.FC<LeagueSelectorProps> = ({
     e.preventDefault();
     setError(null);
     if (!leagueName.trim()) { setError('Session name cannot be empty'); return; }
+    if (leagues.length >= 10) { setError('Maximum of 10 active sessions reached'); return; }
     if (!onCreateLeague) return;
     setIsSubmitting(true);
     try {

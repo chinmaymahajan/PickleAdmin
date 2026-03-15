@@ -22,6 +22,12 @@ export class PlayerService {
       throw new Error(validation.error);
     }
 
+    // Check player limit
+    const existing = dataStore.getPlayersByLeague(leagueId);
+    if (existing.length >= 100) {
+      throw new Error('Maximum of 100 players per session reached');
+    }
+
     // Create player entity
     const player: Player = {
       id: dataStore.generateId(),

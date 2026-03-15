@@ -16,7 +16,9 @@ import CourtIcon from './components/CourtIcon';
 
 function App() {
   const [leagues, setLeagues] = useState<League[]>([]);
-  const [selectedLeagueId, setSelectedLeagueId] = useState<string | null>(null);
+  const [selectedLeagueId, setSelectedLeagueId] = useState<string | null>(() => {
+    return localStorage.getItem('selectedLeagueId');
+  });
   const [players, setPlayers] = useState<Player[]>([]);
   const [courts, setCourts] = useState<Court[]>([]);
   const [rounds, setRounds] = useState<Round[]>([]);
@@ -72,6 +74,73 @@ function App() {
     activeTab: 'setup' | 'rounds';
   }
   const leagueSessionCache = useRef<Map<string, LeagueSessionState>>(new Map());
+
+  // --- Persist auto session state to localStorage ---
+  const saveSessionState = (leagueId: string, state: LeagueSessionState) => {
+    leagueSessionCache.current.set(leagueId, state);
+    const serializable = {
+      autoActiveRoundNumber: state.autoActiveRound?.roundNumber ?? null,
+      timerEndTime: state.timerEndTime,
+      isOnBreak: state.isOnBreak,
+      timerHidden: state.timerHidden,
+      activeTab: state.activeTab,
+    };
+    localStorage.setItem(`sessionState_${leagueId}`, JSON.stringify(serializable));
+  };
+
+  const loadSessionState = (leagueId: string, roundsData: Round[]): LeagueSessionState | null => {
+    // Check in-memory cache first
+    const cached = leagueSessionCache.current.get(leagueId);
+    if (cached) return cached;
+    // Fall back to localStorage
+    const raw = localStorage.getItem(`sessionState_${leagueId}`);
+    if (!raw) return null;
+    try {
+      const parsed = JSON.parse(raw);
+      const activeRound = parsed.autoActiveRoundNumber != null
+        ? roundsData.find(r => r.roundNumber === parsed.autoActiveRoundNumber) ?? null
+        : null;
+      return {
+        autoActiveRound: activeRound,
+        timerEndTime: parsed.timerEndTime,
+        isOnBreak: parsed.isOnBreak ?? false,
+        timerHidden: parsed.timerHidden ?? false,
+        activeTab: parsed.activeTab ?? 'setup',
+      };
+    } catch { return null; }
+  };
+
+  const clearSessionState = (leagueId: string) => {
+    leagueSessionCache.current.delete(leagueId);
+    localStorage.removeItem(`sessionState_${leagueId}`);
+  };
+
+  const initialLoadDone = useRef(false);
+  const isRestoringSession = useRef(false);
+  // Suppress auto-advance for one render cycle after session restore
+  const suppressAdvanceRef = useRef(false);
+
+  // Persist selectedLeagueId
+  useEffect(() => {
+    if (selectedLeagueId) {
+      localStorage.setItem('selectedLeagueId', selectedLeagueId);
+    } else {
+      localStorage.removeItem('selectedLeagueId');
+    }
+  }, [selectedLeagueId]);
+
+  // Persist auto session state whenever key values change (skip during restore)
+  useEffect(() => {
+    if (!initialLoadDone.current || isRestoringSession.current) return;
+    if (!selectedLeagueId || sessionMode !== 'auto') return;
+    saveSessionState(selectedLeagueId, {
+      autoActiveRound,
+      timerEndTime,
+      isOnBreak,
+      timerHidden,
+      activeTab,
+    });
+  }, [selectedLeagueId, autoActiveRound, timerEndTime, isOnBreak, timerHidden, activeTab, sessionMode]);
 
   useEffect(() => {
     localStorage.setItem('darkMode', JSON.stringify(darkMode));
@@ -230,6 +299,13 @@ function App() {
   useEffect(() => {
     if (sessionMode !== 'auto' || !timerExpired || !selectedLeagueId) return;
     if (timerHandledRef.current) return; // Already handled this expiration
+    if (isRestoringSession.current) return; // Don't advance during session restore
+    // Skip the first expiration after a session restore (from page refresh)
+    if (suppressAdvanceRef.current) {
+      suppressAdvanceRef.current = false;
+      timerHandledRef.current = true;
+      return;
+    }
     timerHandledRef.current = true;
 
     const curRounds = roundsRef.current;
@@ -288,6 +364,7 @@ function App() {
     setLoading(true);
     setError(null);
     setPendingModeSwitch(null);
+    isRestoringSession.current = true;
     try {
       const [playersData, courtsData, roundsData] = await Promise.all([
         api.getPlayers(leagueId),
@@ -297,16 +374,42 @@ function App() {
       setPlayers(playersData);
       setCourts(courtsData);
       setRounds(roundsData);
-      if (roundsData.length > 0) {
-        setCurrentRound(roundsData[roundsData.length - 1]);
+
+      // Restore auto session state if available
+      const cached = loadSessionState(leagueId, roundsData);
+      if (cached && sessionMode === 'auto' && roundsData.length > 0) {
+        suppressAdvanceRef.current = true; // Prevent auto-advance from firing on restored expired timer
+        if (cached.timerEndTime !== null && cached.timerEndTime <= Date.now()) {
+          setAutoActiveRound(cached.autoActiveRound);
+          setTimerEndTime(null);
+          setIsOnBreak(cached.isOnBreak);
+        } else {
+          setAutoActiveRound(cached.autoActiveRound);
+          setTimerEndTime(cached.timerEndTime);
+          setIsOnBreak(cached.isOnBreak);
+        }
+        setTimerHidden(cached.timerHidden);
+        setActiveTab(cached.activeTab);
+        setCurrentRound(cached.autoActiveRound || roundsData[roundsData.length - 1]);
       } else {
-        setCurrentRound(null);
-        setAssignments([]);
+        // No cached state — reset to defaults
+        setAutoActiveRound(null);
+        setTimerEndTime(null);
+        setIsOnBreak(false);
+        setTimerHidden(false);
+        if (roundsData.length > 0) {
+          setCurrentRound(roundsData[roundsData.length - 1]);
+        } else {
+          setCurrentRound(null);
+          setAssignments([]);
+        }
       }
     } catch (err: any) {
       setError(err.message || 'Failed to load league data');
     } finally {
       setLoading(false);
+      initialLoadDone.current = true;
+      isRestoringSession.current = false;
     }
   };
 
@@ -327,7 +430,7 @@ function App() {
 
     // Save current league's session state before switching
     if (selectedLeagueId) {
-      leagueSessionCache.current.set(selectedLeagueId, {
+      saveSessionState(selectedLeagueId, {
         autoActiveRound,
         timerEndTime,
         isOnBreak,
@@ -354,30 +457,9 @@ function App() {
       return;
     }
 
-    // Restore cached session state if switching back to a known league
-    const cached = leagueSessionCache.current.get(leagueId);
-    if (cached) {
-      // If the cached timer has expired while we were away, fast-forward to final state
-      if (cached.timerEndTime !== null && cached.timerEndTime <= Date.now()) {
-        setAutoActiveRound(cached.autoActiveRound);
-        setTimerEndTime(null);
-        setIsOnBreak(false);
-        setTimerHidden(cached.timerHidden);
-        setActiveTab(cached.activeTab);
-      } else {
-        setAutoActiveRound(cached.autoActiveRound);
-        setTimerEndTime(cached.timerEndTime);
-        setIsOnBreak(cached.isOnBreak);
-        setTimerHidden(cached.timerHidden);
-        setActiveTab(cached.activeTab);
-      }
-    } else {
-      setAutoActiveRound(null);
-      setTimerEndTime(null);
-      setIsOnBreak(false);
-      setTimerHidden(false);
-      setActiveTab('setup');
-    }
+    // Session state restore is handled by loadLeagueData which has access to rounds data
+    // Mark as restoring so persist effect doesn't overwrite cache with intermediate state
+    isRestoringSession.current = true;
     setAutoActiveAssignments([]);
     setNextRound(null);
     setNextAssignments([]);
@@ -410,6 +492,7 @@ function App() {
     try {
       await api.deleteLeague(leagueId);
       leagueSessionCache.current.delete(leagueId);
+      clearSessionState(leagueId);
       setLeagues(leagues.filter(l => l.id !== leagueId));
       if (selectedLeagueId === leagueId) {
         setSelectedLeagueId(null);
@@ -935,6 +1018,7 @@ function App() {
                           setTimerEndTime(null);
                           setIsOnBreak(false);
                           setTimerHidden(false);
+                          clearSessionState(selectedLeagueId);
                           setSuccessMessage('Session reset — players and courts kept');
                         } catch (err: any) {
                           setError(err.message || 'Failed to reset session');

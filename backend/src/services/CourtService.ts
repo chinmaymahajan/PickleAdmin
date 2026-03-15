@@ -24,6 +24,9 @@ export class CourtService {
 
     // Check for duplicate court identifier in this league
     const existing = dataStore.getCourtsByLeague(leagueId);
+    if (existing.length >= 30) {
+      throw new Error('Maximum of 30 courts per session reached');
+    }
     if (existing.some(c => c.identifier === identifier.trim())) {
       throw new Error(`Court "${identifier.trim()}" already exists`);
     }

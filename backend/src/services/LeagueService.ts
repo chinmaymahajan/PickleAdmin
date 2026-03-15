@@ -16,6 +16,12 @@ export class LeagueService {
    * @returns The created league
    */
   createLeague(name: string, format: LeagueFormat = LeagueFormat.ROUND_ROBIN): League {
+    // Check session limit
+    const existing = dataStore.getAllLeagues();
+    if (existing.length >= 10) {
+      throw new Error('Maximum of 10 active sessions reached');
+    }
+
     const now = new Date();
     const league: League = {
       id: dataStore.generateId(),

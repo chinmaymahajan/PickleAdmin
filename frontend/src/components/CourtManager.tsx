@@ -34,6 +34,7 @@ const CourtManager: React.FC<CourtManagerProps> = ({
     setError(null);
     if (!courtIdentifier.trim()) { setError('Court number cannot be empty'); return; }
     if (isNaN(Number(courtIdentifier))) { setError('Please enter a number'); return; }
+    if (courts.length >= 30) { setError('Maximum of 30 courts per session reached'); return; }
     if (courts.some(c => c.identifier === `Court ${courtIdentifier.trim()}`)) { setError(`Court ${courtIdentifier.trim()} already exists`); return; }
     setIsSubmitting(true);
     shouldRefocus.current = true;

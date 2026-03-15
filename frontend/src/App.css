@@ -2498,17 +2498,17 @@ li:hover .remove-btn {
 }
 
 .tv-compact .tv-court-name {
-  font-size: 3.5rem;
+  font-size: 2.625rem;
 }
 
 .tv-compact .tv-court {
-  padding-top: 1.5rem;
+  padding: 1rem 0.75rem;
   justify-content: flex-start;
-  gap: 4rem;
+  gap: 0.5rem;
 }
 
 .tv-compact .tv-team {
-  font-size: 2.5rem;
+  font-size: 1.875rem;
 }
 
 .tv-compact .tv-waiting {
@@ -2622,9 +2622,9 @@ li:hover .remove-btn {
   .tv-header { padding-bottom: 1.5rem; margin-bottom: 2rem; }
   .tv-exit { width: 4rem; height: 4rem; font-size: 2rem; }
 
-  .tv-compact .tv-court-name { font-size: max(5.5rem, 3.5vw); }
-  .tv-compact .tv-team { font-size: max(3rem, 2vw); }
-  .tv-compact .tv-court { gap: 6rem; }
+  .tv-compact .tv-court-name { font-size: max(3.75rem, 2.25vw); }
+  .tv-compact .tv-team { font-size: max(2.625rem, 1.8vw); }
+  .tv-compact .tv-court { gap: 2rem; padding: 1.5rem 1rem; }
 
   .tv-dense .tv-court-name { font-size: max(4.5rem, 2.5vw); }
   .tv-dense .tv-team { font-size: max(2.25rem, 1.5vw); }
