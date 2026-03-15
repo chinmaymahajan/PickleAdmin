@@ -1,4 +1,4 @@
-# 🏓 DinkTank
+# DinkTank
 
 A web app for running pickleball sessions — round robin, open play, ladders. Handles player assignments, court management, and round progression so you can focus on playing.
 
@@ -8,6 +8,10 @@ A web app for running pickleball sessions — round robin, open play, ladders. H
 - Create and resume sessions with named formats (Round Robin)
 - Landing page shows existing sessions with quick resume, or a clean welcome screen for new users
 - Session status indicator on the Setup page when an auto session is active (shows current round, time remaining, break status)
+- Delete sessions with full cascade (removes all players, courts, rounds, and assignments)
+- Switch sessions from the context bar by clicking the session name
+- "New Session" button to reset rounds and timer while keeping players and courts
+- Session state persists across page refreshes in auto mode (active round, timer, break status)
 
 ### Two Modes
 
@@ -19,6 +23,8 @@ A web app for running pickleball sessions — round robin, open play, ladders. H
 
 ### Player & Court Setup
 - Add/remove players and courts with inline inputs (type + Enter)
+- Import players from Excel/CSV files with column auto-detection and preview modal
+- Tab key navigates from the player input directly to the court input
 - Typeahead autocomplete for editing player assignments on any court
 - Inline conflict warnings when a player is assigned to multiple courts
 - Fair bye distribution — tracks bye counts across all rounds so everyone sits out equally
