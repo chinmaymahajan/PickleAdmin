@@ -55,6 +55,7 @@ function App() {
   const [timerEndTime, setTimerEndTime] = useState<number | null>(null);
   const [timeRemaining, setTimeRemaining] = useState<number>(0);
   const [isOnBreak, setIsOnBreak] = useState(false);
+  const [timerHidden, setTimerHidden] = useState(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [darkMode, setDarkMode] = useState(() => {
     const saved = localStorage.getItem('darkMode');
@@ -182,6 +183,7 @@ function App() {
   const startTimer = useCallback(() => {
     if (timerEnabled && roundDurationMinutes > 0) {
       setTimerEndTime(Date.now() + roundDurationMinutes * 60 * 1000);
+      setTimerHidden(false);
     }
   }, [timerEnabled, roundDurationMinutes]);
 
@@ -538,6 +540,7 @@ function App() {
       setIsOnBreak(false);
       setSessionMode(pendingModeSwitch);
       setPendingModeSwitch(null);
+      setActiveTab('setup');
       setSuccessMessage(`Switched to ${pendingModeSwitch} mode — session reset`);
     } catch (err: any) {
       setError(err.message || 'Failed to switch mode');
@@ -636,6 +639,24 @@ function App() {
 
             {activeTab === 'setup' && (
               <>
+                {sessionMode === 'auto' && rounds.length > 0 && (
+                  <div className="session-status-indicator">
+                    <div className="session-status-dot" />
+                    <div className="session-status-info">
+                      <span className="session-status-title">Auto Session Active</span>
+                      <span className="session-status-detail">
+                        {isOnBreak
+                          ? `Break — ${autoActiveRound ? `Round ${autoActiveRound.roundNumber}` : 'Round 1'} up next`
+                          : autoActiveRound
+                            ? `Round ${autoActiveRound.roundNumber} of ${rounds.length}${timerActive ? ` — ${formatTime(timeRemaining)} left` : ''}`
+                            : `${rounds.length} rounds queued`
+                        }
+                      </span>
+                    </div>
+                    <button className="session-status-view" onClick={() => setActiveTab('rounds')}>View Rounds →</button>
+                  </div>
+                )}
+
                 <section className="league-section">
                   <LeagueSelector
                     leagues={leagues}
@@ -807,14 +828,20 @@ function App() {
                   />
                 )}
 
-                {(timerActive || timerExpired) && (
+                {(timerActive || timerExpired) && !timerHidden && (
                   <div className={`round-timer ${timerExpired && !isOnBreak && isLastRound ? 'expired' : isOnBreak && timerActive ? 'on-break' : timeRemaining < 60000 && timerActive ? 'warning' : ''}`}>
                     <span className="timer-display">{timerExpired ? '0:00' : formatTime(timeRemaining)}</span>
                     {isOnBreak && timerActive && <span className="timer-label">break</span>}
                     {timerExpired && !isOnBreak && isLastRound && <span className="timer-label">Time's up!</span>}
                     {timerActive && !isOnBreak && <span className="timer-label">remaining</span>}
-                    <button className="timer-reset-btn" onClick={() => { setTimerEndTime(null); setIsOnBreak(false); }}>✕</button>
+                    <button className="timer-reset-btn" onClick={() => setTimerHidden(true)} title="Hide timer">👁</button>
                   </div>
+                )}
+
+                {(timerActive || timerExpired) && timerHidden && (
+                  <button className="timer-show-btn" onClick={() => setTimerHidden(false)} title="Show timer">
+                    ⏱ Show Timer
+                  </button>
                 )}
                 
                 {rounds.length > 0 && currentRound && (
@@ -867,6 +894,7 @@ function App() {
             formatTime={formatTime}
             nextRound={nextRound}
             nextAssignments={nextAssignments}
+            timerHidden={timerHidden}
           />
         );
       })()}

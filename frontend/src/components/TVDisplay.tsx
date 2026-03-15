@@ -17,6 +17,7 @@ interface TVDisplayProps {
   formatTime: (ms: number) => string;
   nextRound?: Round | null;
   nextAssignments?: Assignment[];
+  timerHidden?: boolean;
 }
 
 const TVDisplay: React.FC<TVDisplayProps> = ({
@@ -33,7 +34,8 @@ const TVDisplay: React.FC<TVDisplayProps> = ({
   isLastRound,
   formatTime,
   nextRound,
-  nextAssignments = []
+  nextAssignments = [],
+  timerHidden = false
 }) => {
   const getPlayerName = (id: string) => players.find(p => p.id === id)?.name ?? '?';
   const getCourtName = (id: string) => courts.find(c => c.id === id)?.identifier ?? '?';
@@ -121,7 +123,7 @@ const TVDisplay: React.FC<TVDisplayProps> = ({
         )}
       </div>
 
-      {(timerActive || (timerExpired && isLastRound)) && (
+      {!timerHidden && (timerActive || (timerExpired && isLastRound)) && (
         <div className={`tv-timer-floating ${timerExpired && !isOnBreak && isLastRound ? 'expired' : isOnBreak ? 'on-break' : isWarning ? 'warning' : ''}`}>
           {isOnBreak && timerActive ? `BREAK ${formatTime(timeRemaining)}` : timerExpired && isLastRound ? "TIME'S UP" : timerActive ? formatTime(timeRemaining) : ''}
         </div>
