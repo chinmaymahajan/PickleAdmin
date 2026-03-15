@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Round, Assignment, Court, Player } from '../types';
 
 /** TV Display - full-screen overlay for big screens */
@@ -38,9 +38,30 @@ const TVDisplay: React.FC<TVDisplayProps> = ({
   const getPlayerName = (id: string) => players.find(p => p.id === id)?.name ?? '?';
   const getCourtName = (id: string) => courts.find(c => c.id === id)?.identifier ?? '?';
 
+  // Escape key exits TV mode
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onExit();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onExit]);
+
   // During break, show next round info if available
   const displayRound = isOnBreak && nextRound ? nextRound : round;
   const displayAssignments = isOnBreak && nextRound && nextAssignments.length > 0 ? nextAssignments : assignments;
+
+  // Track round changes for animation
+  const [animating, setAnimating] = useState(false);
+  const prevRoundRef = useRef(displayRound.roundNumber);
+  useEffect(() => {
+    if (displayRound.roundNumber !== prevRoundRef.current) {
+      prevRoundRef.current = displayRound.roundNumber;
+      setAnimating(true);
+      const t = setTimeout(() => setAnimating(false), 700);
+      return () => clearTimeout(t);
+    }
+  }, [displayRound.roundNumber]);
 
   const sorted = [...displayAssignments].sort((a, b) =>
     getCourtName(a.courtId).localeCompare(getCourtName(b.courtId))
@@ -55,13 +76,14 @@ const TVDisplay: React.FC<TVDisplayProps> = ({
 
   const isWarning = timerActive && timeRemaining < 60000;
 
-  // Pick column count: for ≤2 courts use 1 col, for ≤4 use 2, otherwise 3
+  // Pick column count and density class based on court count
   const courtCount = sorted.length;
-  const tvCols = courtCount <= 2 ? courtCount : courtCount <= 4 ? 2 : 3;
+  const tvCols = courtCount <= 2 ? courtCount : courtCount <= 4 ? 2 : courtCount <= 6 ? 3 : 4;
+  const densityClass = courtCount > 6 ? 'tv-dense' : courtCount > 4 ? 'tv-compact' : '';
 
   return (
     <div className="tv-overlay" onClick={onExit}>
-      <div className="tv-content" onClick={e => e.stopPropagation()}>
+      <div className={`tv-content ${densityClass} ${animating ? 'tv-round-enter' : ''}`} onClick={e => e.stopPropagation()}>
         <div className="tv-header">
           <span className="tv-league">{leagueName}</span>
           <span className="tv-round">
@@ -75,13 +97,17 @@ const TVDisplay: React.FC<TVDisplayProps> = ({
             <div key={a.id} className="tv-court">
               <div className="tv-court-name">{getCourtName(a.courtId)}</div>
               <div className="tv-matchup">
-                <span className="tv-team">
-                  {a.team1PlayerIds.map(id => getPlayerName(id)).join(' / ')}
-                </span>
-                <span className="tv-vs">vs</span>
-                <span className="tv-team">
-                  {a.team2PlayerIds.map(id => getPlayerName(id)).join(' / ')}
-                </span>
+                <div className="tv-team">
+                  {a.team1PlayerIds.map(id => getPlayerName(id)).join(' + ')}
+                </div>
+                <div className="tv-vs-divider">
+                  <span className="tv-vs-line" />
+                  <span className="tv-vs">VS</span>
+                  <span className="tv-vs-line" />
+                </div>
+                <div className="tv-team">
+                  {a.team2PlayerIds.map(id => getPlayerName(id)).join(' + ')}
+                </div>
               </div>
             </div>
           ))}

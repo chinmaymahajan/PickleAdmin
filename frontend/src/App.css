@@ -1904,39 +1904,49 @@ li:hover .remove-btn {
   align-items: stretch;
   justify-content: center;
   animation: fadeIn 0.3s ease;
-  overflow-y: auto;
+  overflow: hidden;
 }
 
 .tv-content {
   width: 100%;
   max-width: 100%;
   padding: 1rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
 }
 
 .tv-header {
   display: flex;
-  align-items: baseline;
-  gap: 1.5rem;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
   margin-bottom: 1rem;
   border-bottom: 2px solid #1e293b;
   padding-bottom: 0.75rem;
+  position: relative;
 }
 
 .tv-league {
-  font-size: 1.5rem;
+  font-size: clamp(1.5rem, 1.5vw, 3.5rem);
   font-weight: 600;
   color: #94a3b8;
+  text-align: center;
 }
 
 .tv-round {
-  font-size: 3rem;
+  font-size: clamp(2rem, 3vw, 7rem);
   font-weight: 800;
   letter-spacing: -0.02em;
   color: #818cf8;
+  text-align: center;
 }
 
 .tv-exit {
-  margin-left: auto;
+  position: absolute;
+  top: 0;
+  right: 0;
   background: transparent;
   border: 1px solid #334155;
   color: #64748b;
@@ -1963,37 +1973,66 @@ li:hover .remove-btn {
 .tv-courts {
   display: grid;
   grid-template-columns: repeat(var(--tv-cols, 2), 1fr);
-  gap: 1.25rem;
+  gap: 1rem;
+  flex: 1;
+  min-height: 0;
 }
 
 .tv-court {
   background: #111827;
   border: 1px solid #1e293b;
   border-radius: 12px;
-  padding: 1.5rem 2rem;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  min-height: 0;
+  gap: 1.25rem;
+  padding-top: 0.75rem;
 }
 
 .tv-court-name {
-  font-size: 1.125rem;
-  font-weight: 700;
+  font-size: clamp(3rem, 5vw, 12rem);
+  font-weight: 900;
   color: #818cf8;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  margin-bottom: 0.75rem;
+  text-align: center;
+  line-height: 1;
+  width: 100%;
 }
 
 .tv-matchup {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 0.75rem;
-  flex-wrap: wrap;
+  gap: 0.5rem;
 }
 
 .tv-team {
-  font-size: 2rem;
+  font-size: clamp(1.5rem, 2.2vw, 5rem);
   font-weight: 600;
   color: #e2e8f0;
   line-height: 1.3;
+  text-align: center;
+}
+
+.tv-player-name {
+  padding: 0.125rem 0;
+}
+
+.tv-vs-divider {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 80%;
+}
+
+.tv-vs-line {
+  flex: 1;
+  height: 1px;
+  background: #334155;
 }
 
 .tv-vs {
@@ -2002,6 +2041,7 @@ li:hover .remove-btn {
   color: #475569;
   text-transform: uppercase;
   letter-spacing: 0.05em;
+  flex-shrink: 0;
 }
 
 .tv-waiting {
@@ -2030,11 +2070,153 @@ li:hover .remove-btn {
 }
 
 /* ============================================
+   TV Density Variants — scale down for many courts
+   ============================================ */
+.tv-compact .tv-header {
+  margin-bottom: 0.5rem;
+  padding-bottom: 0.5rem;
+}
+
+.tv-compact .tv-league {
+  font-size: 1.125rem;
+}
+
+.tv-compact .tv-round {
+  font-size: 2rem;
+}
+
+.tv-compact .tv-court-name {
+  font-size: 3.5rem;
+}
+
+.tv-compact .tv-court {
+  padding-top: 1.5rem;
+  justify-content: flex-start;
+  gap: 4rem;
+}
+
+.tv-compact .tv-team {
+  font-size: 2.5rem;
+}
+
+.tv-compact .tv-waiting {
+  margin-top: 0.75rem;
+  padding: 0.5rem 1rem;
+}
+
+.tv-compact .tv-waiting-label {
+  font-size: 0.875rem;
+}
+
+.tv-compact .tv-waiting-names {
+  font-size: 1rem;
+}
+
+/* Dense: 7+ courts */
+.tv-dense .tv-header {
+  margin-bottom: 0.375rem;
+  padding-bottom: 0.375rem;
+}
+
+.tv-dense .tv-league {
+  font-size: 1rem;
+}
+
+.tv-dense .tv-round {
+  font-size: 1.5rem;
+}
+
+.tv-dense .tv-court-name {
+  font-size: 3rem;
+}
+
+.tv-dense .tv-team {
+  font-size: 1.625rem;
+}
+
+.tv-dense .tv-court {
+  padding: 1rem 0.75rem;
+  border-radius: 8px;
+  gap: 0.75rem;
+}
+
+.tv-dense .tv-courts {
+  gap: 0.5rem;
+}
+
+.tv-dense .tv-vs-divider {
+  gap: 0.375rem;
+}
+
+.tv-dense .tv-vs {
+  font-size: 0.75rem;
+}
+
+.tv-dense .tv-matchup {
+  gap: 0.25rem;
+}
+
+.tv-dense .tv-waiting {
+  margin-top: 0.5rem;
+  padding: 0.375rem 0.75rem;
+}
+
+.tv-dense .tv-waiting-label {
+  font-size: 0.8125rem;
+}
+
+.tv-dense .tv-waiting-names {
+  font-size: 0.875rem;
+}
+
+/* ============================================
+   TV Round Transition Animation
+   ============================================ */
+@keyframes tvRoundEnter {
+  0% { opacity: 0; transform: scale(0.95); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+.tv-round-enter {
+  animation: tvRoundEnter 0.7s ease-out;
+}
+
+/* ============================================
    Animations
    ============================================ */
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(4px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+/* ============================================
+   TV Display — Large Screen Scaling (4K+)
+   ============================================ */
+@media (min-width: 2560px) {
+  .tv-league { font-size: max(2.5rem, 1.5vw); }
+  .tv-round { font-size: max(5rem, 3vw); }
+  .tv-court-name { font-size: max(8rem, 5vw); }
+  .tv-team { font-size: max(3.5rem, 2.2vw); }
+  .tv-vs { font-size: max(1.75rem, 1vw); }
+  .tv-vs-line { height: 3px; }
+  .tv-vs-divider { gap: 1.5rem; }
+  .tv-matchup { gap: 1.5rem; }
+  .tv-court { gap: 3rem; padding: 4rem 3rem 3rem; }
+  .tv-courts { gap: 2rem; }
+  .tv-waiting-label { font-size: 2.5rem; }
+  .tv-waiting-names { font-size: 3rem; }
+  .tv-waiting { padding: 2rem 2.5rem; }
+  .tv-content { padding: 2.5rem 3.5rem; }
+  .tv-header { padding-bottom: 1.5rem; margin-bottom: 2rem; }
+  .tv-exit { width: 4rem; height: 4rem; font-size: 2rem; }
+
+  .tv-compact .tv-court-name { font-size: max(5.5rem, 3.5vw); }
+  .tv-compact .tv-team { font-size: max(3rem, 2vw); }
+  .tv-compact .tv-court { gap: 6rem; }
+
+  .tv-dense .tv-court-name { font-size: max(4.5rem, 2.5vw); }
+  .tv-dense .tv-team { font-size: max(2.25rem, 1.5vw); }
+  .tv-dense .tv-court { gap: 2rem; padding: 2.5rem 2rem; }
 }
 
 /* ============================================
