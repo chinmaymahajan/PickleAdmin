@@ -39,7 +39,7 @@ export function playBuzzer() {
 
     // Waveshaper for brass-like harmonic richness
     const distortion = ctx.createWaveShaper();
-    distortion.curve = makeDistortionCurve(8);
+    distortion.curve = makeDistortionCurve(8) as any;
     distortion.oversample = '4x';
     distortion.connect(master);
 
