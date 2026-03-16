@@ -56,6 +56,7 @@ A web app for running pickleball sessions — round robin, open play, ladders. H
 - Configurable round duration and break duration
 - Visual states: normal → amber warning (under 60s) → red pulse (expired)
 - "Time's Up" indicator on the last round only
+- Train horn sound effect plays for 5 seconds when a round timer expires
 - Hide/show toggle — admin can hide the timer without stopping it, and bring it back anytime
 - Timer automatically unhides when a new round starts
 

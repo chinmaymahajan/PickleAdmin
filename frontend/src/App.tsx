@@ -14,6 +14,7 @@ import { api } from './api/client';
 import { League, Player, Court, Round, Assignment, LeagueFormat } from './types';
 import CourtIcon from './components/CourtIcon';
 import PickleballIcon from './components/PickleballIcon';
+import { playBuzzer } from './utils/sound';
 
 function App() {
   const [leagues, setLeagues] = useState<League[]>([]);
@@ -332,6 +333,7 @@ function App() {
       setTimerEndTime(Date.now() + roundDurationMinutes * 60 * 1000);
     } else {
       // Round just ended
+      playBuzzer();
       if (!curAutoActive) return;
       const currentIndex = curRounds.findIndex(r => r.id === curAutoActive.id);
       const nextAutoRound = currentIndex >= 0 && currentIndex < curRounds.length - 1
@@ -349,6 +351,19 @@ function App() {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [timerExpired]);
+
+  // Manual mode: play buzzer when timer expires
+  const manualBuzzerFiredRef = useRef(false);
+  useEffect(() => {
+    if (sessionMode === 'auto') return;
+    if (timerExpired && !manualBuzzerFiredRef.current) {
+      manualBuzzerFiredRef.current = true;
+      playBuzzer();
+    }
+    if (timerActive) {
+      manualBuzzerFiredRef.current = false;
+    }
+  }, [timerExpired, timerActive, sessionMode]);
 
   const selectedLeague = leagues.find(l => l.id === selectedLeagueId);
   const timerRound = sessionMode === 'auto' && autoActiveRound ? autoActiveRound : currentRound;
