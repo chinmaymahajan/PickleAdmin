@@ -2,7 +2,7 @@
 
 Free, open-source pickleball session manager. Runs entirely in the browser — no server, no sign-up, no cost. Just open the app and start organizing games.
 
-**[Launch App →](https://chinmaymahajan.github.io/PickleballHq/)**
+**[Launch App →](https://chinmaymahajan.github.io/PickleAdmin/)**
 
 ---
 
@@ -54,7 +54,7 @@ Pickle Admin handles the tedious parts of running pickleball sessions: assigning
 
 The app is deployed and ready to use:
 
-**[https://chinmaymahajan.github.io/PickleballHq/](https://chinmaymahajan.github.io/PickleballHq/)**
+**[[https://chinmaymahajan.github.io/PickleballHq](https://chinmaymahajan.github.io/PickleAdmin/)/]**
 
 All data is stored in your browser's localStorage. Nothing leaves your device.
 
