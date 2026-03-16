@@ -124,7 +124,7 @@ const LeagueSelector: React.FC<LeagueSelectorProps> = ({
       <div className="landing-page">
         <div className="landing-hero">
           <div className="landing-icon"><PickleballIcon size={64} /></div>
-          <h1>Welcome to DinkTank</h1>
+          <h1>Welcome to Pickle Admin</h1>
           <p className="landing-subtitle">
             Run pickleball sessions, ladders and open play in seconds.
           </p>

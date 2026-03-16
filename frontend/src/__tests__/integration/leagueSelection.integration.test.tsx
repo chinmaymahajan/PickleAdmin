@@ -27,7 +27,7 @@ describe('League Selection Integration Tests', () => {
 
     // Wait for the landing page to appear (after listLeagues resolves)
     await waitFor(() => {
-      expect(screen.getByText('Welcome to DinkTank')).toBeInTheDocument();
+      expect(screen.getByText('Welcome to Pickle Admin')).toBeInTheDocument();
     });
 
     // Should show the "Start New Session" CTA button

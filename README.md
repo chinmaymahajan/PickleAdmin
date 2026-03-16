@@ -1,4 +1,4 @@
-# DinkTank
+# Pickle Admin
 
 A web app for running pickleball sessions — round robin, open play, ladders. Handles player assignments, court management, and round progression so you can focus on playing.
 
@@ -17,7 +17,7 @@ A web app for running pickleball sessions — round robin, open play, ladders. H
 
 **Manual Mode** — You control the pace. Generate rounds one at a time, optionally with a countdown timer.
 
-**Auto Mode** — Set the number of rounds, round duration, and break time. DinkTank generates all rounds upfront and auto-advances through them with timers and breaks.
+**Auto Mode** — Set the number of rounds, round duration, and break time. Pickle Admin generates all rounds upfront and auto-advances through them with timers and breaks.
 
 - Switching between modes prompts a confirmation and resets rounds while preserving players and courts
 
@@ -72,7 +72,7 @@ A web app for running pickleball sessions — round robin, open play, ladders. H
 ## Project Structure
 
 ```
-dinktank/
+pickle-admin/
 ├── backend/           # Node.js/Express API
 │   └── src/
 │       ├── data/      # In-memory data store

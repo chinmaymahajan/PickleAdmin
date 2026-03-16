@@ -751,7 +751,7 @@ function App() {
   return (
     <div className={`app ${darkMode ? 'dark' : ''}`}>
       <header>
-        <h1><PickleballIcon size={28} /> DinkTank</h1>
+        <h1><PickleballIcon size={28} /> Pickle Admin</h1>
         <button
           className="theme-toggle"
           onClick={() => setDarkMode(!darkMode)}
