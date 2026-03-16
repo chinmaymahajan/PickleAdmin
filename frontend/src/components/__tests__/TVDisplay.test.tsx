@@ -1,5 +1,4 @@
-import React from 'react';
-import { render, screen, fireEvent, act } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import TVDisplay from '../TVDisplay';
 import { Round, Assignment, Court, Player } from '../../types';
 
