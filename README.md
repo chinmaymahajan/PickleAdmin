@@ -1,125 +1,119 @@
 # Pickle Admin
 
-A web app for running pickleball sessions — round robin, open play, ladders. Handles player assignments, court management, and round progression so you can focus on playing.
+Free, open-source pickleball session manager. Runs entirely in the browser — no server, no sign-up, no cost. Just open the app and start organizing games.
+
+**[Launch App →](https://chinmaymahajan.github.io/PickleballHq/)**
+
+---
+
+## What It Does
+
+Pickle Admin handles the tedious parts of running pickleball sessions: assigning players to courts, rotating teams fairly, managing timers, and displaying matchups on a big screen. You bring the players — it handles the rest.
 
 ## Features
 
 ### Session Management
-- Create and resume sessions with named formats (Round Robin)
-- Landing page shows existing sessions with quick resume, or a clean welcome screen for new users
-- Session status indicator on the Setup page when an auto session is active (shows current round, time remaining, break status)
-- Delete sessions with full cascade (removes all players, courts, rounds, and assignments)
-- Switch sessions from the context bar by clicking the session name
-- "New Session" button to reset rounds and timer while keeping players and courts
-- Session state persists across page refreshes in auto mode (active round, timer, break status)
+- Create, resume, and delete sessions
+- Switch between sessions from the header bar
+- Reset rounds while keeping your player and court roster
+- Full session state persists across page refreshes
 
 ### Two Modes
 
-**Manual Mode** — You control the pace. Generate rounds one at a time, optionally with a countdown timer.
+**Manual** — Generate rounds one at a time. Optional countdown timer.
 
-**Auto Mode** — Set the number of rounds, round duration, and break time. Pickle Admin generates all rounds upfront and auto-advances through them with timers and breaks.
+**Auto** — Set total rounds, round duration, and break time. The app generates all rounds upfront and auto-advances through them.
 
-- Switching between modes prompts a confirmation and resets rounds while preserving players and courts
+### Players & Courts
+- Add/remove with inline inputs (type + Enter)
+- Import players from Excel or CSV with auto-detection and preview
+- Fair bye distribution — tracks who sat out so everyone plays equally
+- In auto mode, roster changes automatically regenerate future rounds
 
-### Player & Court Setup
-- Add/remove players and courts with inline inputs (type + Enter)
-- Import players from Excel/CSV files with column auto-detection and preview modal
-- Tab key navigates from the player input directly to the court input
-- Typeahead autocomplete for editing player assignments on any court
-- Inline conflict warnings when a player is assigned to multiple courts
-- Fair bye distribution — tracks bye counts across all rounds so everyone sits out equally
-- In auto mode, adding/removing players or courts automatically regenerates future rounds
+### TV Display
+- Full-screen dark overlay for projectors and big screens
+- Responsive layout scales from 1 court to 30 courts
+- 4K-ready with dedicated scaling for 2560px+ displays
+- Shows "Up Next" matchups during breaks
+- Smooth round transition animations
 
-### Round Management
-- Round-by-round navigation with clickable tabs
-- In auto mode, tabs show a live indicator (pulsing dot) for the active round while still letting admins browse and edit future rounds
-- Assignments are editable via typeahead inputs with save/discard controls
-- "Next In Line" section shows waiting players with bye counts
+### Timer & Sound
+- Configurable round and break durations
+- Visual countdown: normal → amber warning → red pulse → expired
+- Train horn sound effect (5 seconds) when a round ends
+- Hide/show toggle without stopping the timer
 
-### TV Display Mode
-- Full-screen dark overlay optimized for big screens and projectors
-- Large court numbers as card headings with team matchups below (e.g., "Alice + Bob VS Carol + Dave")
-- League name and round number centered at the top
-- Responsive density scaling:
-  - 1–4 courts: full-size layout
-  - 5–6 courts: compact layout with scaled fonts
-  - 7+ courts: dense layout with 4-column grid
-- Viewport-relative font sizing (`clamp()`) scales naturally from laptops to 4K TVs
-- Dedicated large-screen media query for 2560px+ displays
-- Smooth fade-and-scale animation when a new round starts
-- Timer overlay — countdown during rounds, break timer between rounds
-- During breaks, shows "Up Next" with the next round's assignments
-- Exit via Escape key, clicking the overlay background, or the ✕ button
+### Other
+- Dark mode (persisted)
+- Dev tools: seed 26 players + 6 courts for quick testing
+- Limits: 100 players, 30 courts, 10 sessions
 
-### Timer System
-- Optional in manual mode, required in auto mode
-- Configurable round duration and break duration
-- Visual states: normal → amber warning (under 60s) → red pulse (expired)
-- "Time's Up" indicator on the last round only
-- Train horn sound effect plays for 5 seconds when a round timer expires
-- Hide/show toggle — admin can hide the timer without stopping it, and bring it back anytime
-- Timer automatically unhides when a new round starts
+---
 
-### Settings
-- Dark mode toggle (persisted)
-- Round duration, break duration, total rounds (all persisted to localStorage)
-- Session validation — requires 4+ players and 1+ court before starting
+## Getting Started
 
-### Dev Tools
-- Seed mock data (26 players, 6 courts)
-- Clear all data
+The app is deployed and ready to use:
+
+**[https://chinmaymahajan.github.io/PickleballHq/](https://chinmaymahajan.github.io/PickleballHq/)**
+
+All data is stored in your browser's localStorage. Nothing leaves your device.
+
+### Run Locally
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Opens at [http://localhost:3000](http://localhost:3000).
+
+### Build
+
+```bash
+cd frontend
+npm run build
+```
+
+Output goes to `frontend/dist/`.
+
+### Tests
+
+```bash
+cd frontend
+npm test
+```
+
+---
 
 ## Project Structure
 
 ```
 pickle-admin/
-├── backend/           # Node.js/Express API
+├── frontend/              # React SPA (the deployed app)
 │   └── src/
-│       ├── data/      # In-memory data store
-│       ├── middleware/ # Error handling
-│       ├── models/    # TypeScript data models
-│       ├── routes/    # REST endpoints
-│       ├── services/  # Business logic
-│       └── utils/     # Shuffle, validation
-├── frontend/          # React SPA
+│       ├── api/           # localStorage-backed data layer
+│       ├── components/    # UI components
+│       ├── types/         # TypeScript interfaces
+│       └── utils/         # Sound effects, helpers
+├── backend/               # Express API (reference implementation, not deployed)
 │   └── src/
-│       ├── api/       # API client
-│       ├── components/# UI components
-│       └── types/     # TypeScript interfaces
-└── package.json       # Root workspace config
+│       ├── services/      # Business logic (round generation, bye fairness)
+│       ├── data/          # In-memory data store
+│       ├── routes/        # REST endpoints
+│       └── models/        # Data models
+└── .github/workflows/     # GitHub Pages deployment
 ```
 
-## Setup
-
-```bash
-npm install
-npm run install:all
-```
-
-## Development
-
-```bash
-npm run dev:backend    # Express API on :3001
-npm run dev:frontend   # Vite dev server on :5173
-```
-
-## Testing
-
-```bash
-npm test               # All tests
-npm run test:backend   # Backend only
-npm run test:frontend  # Frontend only
-```
-
-## Build
-
-```bash
-npm run build
-```
+The backend folder contains the original Express API with the same business logic. It's kept as a reference but is not required — the frontend includes a complete localStorage-backed implementation of all the same algorithms.
 
 ## Tech Stack
 
-- **Frontend**: React 18, TypeScript, Vite
-- **Backend**: Node.js, Express, TypeScript
-- **Testing**: Jest, React Testing Library
-- **Package Management**: npm workspaces
+- React 18, TypeScript, Vite
+- Jest + React Testing Library
+- GitHub Pages (static deployment)
+- Web Audio API (timer sound effects)
+
+## License
+
+MIT
