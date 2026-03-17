@@ -14,7 +14,7 @@ import { api } from './api/client';
 import { League, Player, Court, Round, Assignment, LeagueFormat } from './types';
 import CourtIcon from './components/CourtIcon';
 import PickleballIcon from './components/PickleballIcon';
-import { playBuzzer } from './utils/sound';
+import { playBuzzer, suppressBuzzerFor } from './utils/sound';
 
 function App() {
   const [leagues, setLeagues] = useState<League[]>([]);
@@ -62,6 +62,7 @@ function App() {
   const [isOnBreak, setIsOnBreak] = useState(false);
   const [timerHidden, setTimerHidden] = useState(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const sessionModeRef = useRef(sessionMode);
   const [darkMode, setDarkMode] = useState(() => {
     const saved = localStorage.getItem('darkMode');
     return saved ? JSON.parse(saved) : false;
@@ -115,6 +116,8 @@ function App() {
   const clearSessionState = (leagueId: string) => {
     leagueSessionCache.current.delete(leagueId);
     localStorage.removeItem(`sessionState_${leagueId}`);
+    localStorage.removeItem(`manualTimerEndTime_${leagueId}`);
+    localStorage.removeItem(`manualActiveTab_${leagueId}`);
   };
 
   const initialLoadDone = useRef(false);
@@ -229,6 +232,28 @@ function App() {
     localStorage.setItem('timerEnabled', JSON.stringify(timerEnabled));
   }, [timerEnabled]);
 
+  // Persist manual-mode timer so it survives page refresh.
+  // Skip during initial load so we don't wipe the saved value before
+  // loadLeagueData has a chance to restore it.
+  useEffect(() => {
+    if (!initialLoadDone.current) return;
+    if (sessionMode === 'manual' && selectedLeagueId) {
+      if (timerEndTime !== null) {
+        localStorage.setItem(`manualTimerEndTime_${selectedLeagueId}`, String(timerEndTime));
+      } else {
+        localStorage.removeItem(`manualTimerEndTime_${selectedLeagueId}`);
+      }
+    }
+  }, [timerEndTime, sessionMode, selectedLeagueId]);
+
+  // Persist activeTab for manual mode so the rounds view is restored after refresh
+  useEffect(() => {
+    if (!initialLoadDone.current) return;
+    if (sessionMode === 'manual' && selectedLeagueId) {
+      localStorage.setItem(`manualActiveTab_${selectedLeagueId}`, activeTab);
+    }
+  }, [activeTab, sessionMode, selectedLeagueId]);
+
   useEffect(() => {
     localStorage.setItem('sessionMode', sessionMode);
     if (sessionMode === 'auto') setTimerEnabled(true);
@@ -242,7 +267,76 @@ function App() {
     localStorage.setItem('totalRoundsPlanned', String(totalRoundsPlanned));
   }, [totalRoundsPlanned]);
 
-  // Countdown timer tick
+  // Ref: has the manual-mode buzzer already fired for the current timer?
+  // Initialised to true so no buzzer fires before a timer has ever started.
+  const manualBuzzerFiredRef = useRef(true);
+  // Ref: timestamp when the current timer was started (used to reject
+  // false expirations that happen within the first few seconds).
+  const timerStartedAtRef = useRef(0);
+
+  // --- Core auto-advance logic (extracted so it can be called from both
+  // the React effect AND the interval tick) ---
+  const handleAutoAdvance = useCallback(() => {
+    if (sessionModeRef.current !== 'auto' || !selectedLeagueId) return;
+    if (timerHandledRef.current) return;
+    if (isRestoringSession.current) return;
+    if (suppressAdvanceRef.current) {
+      suppressAdvanceRef.current = false;
+      timerHandledRef.current = true;
+      return;
+    }
+    timerHandledRef.current = true;
+
+    const curRounds = roundsRef.current;
+    const curAutoActive = autoActiveRoundRef.current;
+    const curIsOnBreak = isOnBreakRef.current;
+
+    if (curIsOnBreak) {
+      let targetRound: Round | undefined;
+      if (!curAutoActive) {
+        targetRound = curRounds.length > 0 ? curRounds[0] : undefined;
+      } else {
+        const currentIndex = curRounds.findIndex(r => r.id === curAutoActive.id);
+        targetRound = currentIndex >= 0 && currentIndex < curRounds.length - 1
+          ? curRounds[currentIndex + 1]
+          : undefined;
+      }
+      if (!targetRound) { setIsOnBreak(false); return; }
+      console.log(`[AUTO] Round ${targetRound.roundNumber} starting (${roundDurationMinutes}m)`);
+      setIsOnBreak(false);
+      setAutoActiveRound(targetRound);
+      setCurrentRound(targetRound);
+      const dur = roundDurationMinutes * 60 * 1000;
+      setTimerEndTime(Date.now() + dur);
+      setTimeRemaining(dur);
+    } else {
+      playBuzzer();
+      if (!curAutoActive) return;
+      const currentIndex = curRounds.findIndex(r => r.id === curAutoActive.id);
+      const nextAutoRound = currentIndex >= 0 && currentIndex < curRounds.length - 1
+        ? curRounds[currentIndex + 1]
+        : undefined;
+      if (!nextAutoRound) return;
+      if (breakMinutes > 0) {
+        console.log(`[AUTO] Break starting (${breakMinutes}m) — Round ${nextAutoRound.roundNumber} up next`);
+        setIsOnBreak(true);
+        const bDur = breakMinutes * 60 * 1000;
+        setTimerEndTime(Date.now() + bDur);
+        setTimeRemaining(bDur);
+      } else {
+        console.log(`[AUTO] Round ${nextAutoRound.roundNumber} starting (${roundDurationMinutes}m, no break)`);
+        setAutoActiveRound(nextAutoRound);
+        setCurrentRound(nextAutoRound);
+        const dur = roundDurationMinutes * 60 * 1000;
+        setTimerEndTime(Date.now() + dur);
+        setTimeRemaining(dur);
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedLeagueId, roundDurationMinutes, breakMinutes]);
+
+  // Countdown timer tick — only handles the countdown display and manual buzzer.
+  // Auto-advance is handled by a separate effect watching timerExpired.
   useEffect(() => {
     if (timerEndTime === null) {
       setTimeRemaining(0);
@@ -255,6 +349,15 @@ function App() {
       if (remaining <= 0 && timerRef.current) {
         clearInterval(timerRef.current);
         timerRef.current = null;
+        // Manual-mode buzzer
+        if (
+          sessionModeRef.current === 'manual' &&
+          !manualBuzzerFiredRef.current &&
+          Date.now() - timerStartedAtRef.current >= 5000
+        ) {
+          manualBuzzerFiredRef.current = true;
+          playBuzzer();
+        }
       }
     };
     tick();
@@ -264,8 +367,12 @@ function App() {
 
   const startTimer = useCallback(() => {
     if (timerEnabled && roundDurationMinutes > 0) {
-      setTimerEndTime(Date.now() + roundDurationMinutes * 60 * 1000);
+      const duration = roundDurationMinutes * 60 * 1000;
+      setTimerEndTime(Date.now() + duration);
+      setTimeRemaining(duration);
       setTimerHidden(false);
+      timerStartedAtRef.current = Date.now();
+      manualBuzzerFiredRef.current = false;
     }
   }, [timerEnabled, roundDurationMinutes]);
 
@@ -289,6 +396,7 @@ function App() {
   useEffect(() => { isOnBreakRef.current = isOnBreak; }, [isOnBreak]);
   useEffect(() => { autoActiveRoundRef.current = autoActiveRound; }, [autoActiveRound]);
   useEffect(() => { roundsRef.current = rounds; }, [rounds]);
+  useEffect(() => { sessionModeRef.current = sessionMode; }, [sessionMode]);
 
   // Reset handled flag whenever a new timer starts
   useEffect(() => {
@@ -297,73 +405,32 @@ function App() {
     }
   }, [timerActive]);
 
-  // Auto-advance: when timer expires in auto mode, start break then next round
+  // Auto-advance: when timer expires in auto mode, start break then next round.
+  // This effect handles the normal (tab-focused) case.
   useEffect(() => {
-    if (sessionMode !== 'auto' || !timerExpired || !selectedLeagueId) return;
-    if (timerHandledRef.current) return; // Already handled this expiration
-    if (isRestoringSession.current) return; // Don't advance during session restore
-    // Skip the first expiration after a session restore (from page refresh)
-    if (suppressAdvanceRef.current) {
-      suppressAdvanceRef.current = false;
-      timerHandledRef.current = true;
-      return;
-    }
-    timerHandledRef.current = true;
-
-    const curRounds = roundsRef.current;
-    const curAutoActive = autoActiveRoundRef.current;
-    const curIsOnBreak = isOnBreakRef.current;
-
-    if (curIsOnBreak) {
-      // Break just ended — advance to next round (or first round if session just started)
-      let targetRound: Round | undefined;
-      if (!curAutoActive) {
-        // Initial break before Round 1
-        targetRound = curRounds.length > 0 ? curRounds[0] : undefined;
-      } else {
-        const currentIndex = curRounds.findIndex(r => r.id === curAutoActive.id);
-        targetRound = currentIndex >= 0 && currentIndex < curRounds.length - 1
-          ? curRounds[currentIndex + 1]
-          : undefined;
-      }
-      if (!targetRound) { setIsOnBreak(false); return; }
-      setIsOnBreak(false);
-      setAutoActiveRound(targetRound);
-      setCurrentRound(targetRound);
-      setTimerEndTime(Date.now() + roundDurationMinutes * 60 * 1000);
-    } else {
-      // Round just ended
-      playBuzzer();
-      if (!curAutoActive) return;
-      const currentIndex = curRounds.findIndex(r => r.id === curAutoActive.id);
-      const nextAutoRound = currentIndex >= 0 && currentIndex < curRounds.length - 1
-        ? curRounds[currentIndex + 1]
-        : undefined;
-      if (!nextAutoRound) return; // Last round, stay expired
-      if (breakMinutes > 0) {
-        setIsOnBreak(true);
-        setTimerEndTime(Date.now() + breakMinutes * 60 * 1000);
-      } else {
-        setAutoActiveRound(nextAutoRound);
-        setCurrentRound(nextAutoRound);
-        setTimerEndTime(Date.now() + roundDurationMinutes * 60 * 1000);
-      }
-    }
+    if (!timerExpired) return;
+    handleAutoAdvance();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [timerExpired]);
 
-  // Manual mode: play buzzer when timer expires
-  const manualBuzzerFiredRef = useRef(false);
+  // When the tab becomes visible again, check if the timer expired while
+  // backgrounded and catch up immediately.
   useEffect(() => {
-    if (sessionMode === 'auto') return;
-    if (timerExpired && !manualBuzzerFiredRef.current) {
-      manualBuzzerFiredRef.current = true;
-      playBuzzer();
-    }
-    if (timerActive) {
-      manualBuzzerFiredRef.current = false;
-    }
-  }, [timerExpired, timerActive, sessionMode]);
+    const onVisible = () => {
+      if (document.visibilityState !== 'visible') return;
+      if (timerEndTime === null) return;
+      const remaining = timerEndTime - Date.now();
+      if (remaining <= 0) {
+        setTimeRemaining(0);
+        handleAutoAdvance();
+      }
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, [timerEndTime, handleAutoAdvance]);
+
+  // (Manual-mode buzzer is now handled directly inside the countdown
+  // interval tick above — no React effect needed.)
 
   const selectedLeague = leagues.find(l => l.id === selectedLeagueId);
   const timerRound = sessionMode === 'auto' && autoActiveRound ? autoActiveRound : currentRound;
@@ -402,6 +469,7 @@ function App() {
         } else {
           setAutoActiveRound(cached.autoActiveRound);
           setTimerEndTime(cached.timerEndTime);
+          setTimeRemaining(cached.timerEndTime !== null ? Math.max(0, cached.timerEndTime - Date.now()) : 0);
           setIsOnBreak(cached.isOnBreak);
         }
         setTimerHidden(cached.timerHidden);
@@ -410,9 +478,35 @@ function App() {
       } else {
         // No cached state — reset to defaults
         setAutoActiveRound(null);
-        setTimerEndTime(null);
         setIsOnBreak(false);
         setTimerHidden(false);
+
+        // Restore manual-mode timer if it was running before refresh
+        if (sessionMode === 'manual') {
+          const savedEnd = localStorage.getItem(`manualTimerEndTime_${leagueId}`);
+          if (savedEnd) {
+            const endTime = Number(savedEnd);
+            const remaining = endTime - Date.now();
+            if (remaining > 0) {
+              setTimerEndTime(endTime);
+              setTimeRemaining(remaining);
+            } else {
+              // Timer already expired — show expired state
+              setTimerEndTime(endTime);
+              setTimeRemaining(0);
+            }
+          } else {
+            setTimerEndTime(null);
+          }
+          // Restore active tab
+          const savedTab = localStorage.getItem(`manualActiveTab_${leagueId}`);
+          if (savedTab === 'rounds' || savedTab === 'setup') {
+            setActiveTab(savedTab);
+          }
+        } else {
+          setTimerEndTime(null);
+        }
+
         if (roundsData.length > 0) {
           setCurrentRound(roundsData[roundsData.length - 1]);
         } else {
@@ -610,6 +704,9 @@ function App() {
     setError(null);
     setSuccessMessage(null);
     setLoading(true);
+    // Suppress any buzzer sound for 10 seconds — prevents phantom horn
+    // triggers caused by React state transitions when starting a round.
+    suppressBuzzerFor(10000);
     try {
       const round = await api.generateRound(selectedLeagueId);
       setRounds([...rounds, round]);
@@ -628,6 +725,7 @@ function App() {
     setError(null);
     setSuccessMessage(null);
     setLoading(true);
+    suppressBuzzerFor(10000);
     try {
       for (let i = 0; i < totalRoundsPlanned; i++) {
         await api.generateRound(selectedLeagueId);
@@ -642,11 +740,17 @@ function App() {
       // Start with an initial break so TV shows "Up Next — Round 1"
       setIsOnBreak(true);
       if (breakMinutes > 0) {
-        setTimerEndTime(Date.now() + breakMinutes * 60 * 1000);
+        console.log(`[AUTO] Initial break starting (${breakMinutes}m) — Round 1 up next`);
+        const breakDuration = breakMinutes * 60 * 1000;
+        setTimerEndTime(Date.now() + breakDuration);
+        setTimeRemaining(breakDuration);
       } else {
         // No break configured — start Round 1 immediately
+        console.log(`[AUTO] Round 1 starting immediately (${roundDurationMinutes}m, no break)`);
         setAutoActiveRound(firstAutoRound);
-        setTimerEndTime(Date.now() + roundDurationMinutes * 60 * 1000);
+        const roundDuration = roundDurationMinutes * 60 * 1000;
+        setTimerEndTime(Date.now() + roundDuration);
+        setTimeRemaining(roundDuration);
         setIsOnBreak(false);
       }
       setSuccessMessage(`${totalRoundsPlanned} rounds generated — session starting`);

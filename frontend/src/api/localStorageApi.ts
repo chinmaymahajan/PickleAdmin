@@ -43,6 +43,64 @@ function saveStore(store: Store): void {
   localStorage.setItem(STORE_KEY, JSON.stringify(store));
 }
 
+// ── Partner uniqueness helpers (ported from backend AssignmentService) ────────
+// Exported for testing
+
+export function getPartnerKey(playerIdA: string, playerIdB: string): string {
+  return playerIdA < playerIdB
+    ? `${playerIdA}_${playerIdB}`
+    : `${playerIdB}_${playerIdA}`;
+}
+
+export function buildPartnershipHistory(allPreviousAssignments: Assignment[] | undefined): Map<string, number> {
+  const history = new Map<string, number>();
+  if (!allPreviousAssignments || allPreviousAssignments.length === 0) return history;
+  for (const assignment of allPreviousAssignments) {
+    const teams = [assignment.team1PlayerIds, assignment.team2PlayerIds];
+    for (const team of teams) {
+      for (let i = 0; i < team.length; i++) {
+        for (let j = i + 1; j < team.length; j++) {
+          const key = getPartnerKey(team[i], team[j]);
+          history.set(key, (history.get(key) ?? 0) + 1);
+        }
+      }
+    }
+  }
+  return history;
+}
+
+export function scoreSplit(team1Ids: string[], team2Ids: string[], partnershipHistory: Map<string, number>): number {
+  let score = 0;
+  for (let i = 0; i < team1Ids.length; i++) {
+    for (let j = i + 1; j < team1Ids.length; j++) {
+      score += partnershipHistory.get(getPartnerKey(team1Ids[i], team1Ids[j])) ?? 0;
+    }
+  }
+  for (let i = 0; i < team2Ids.length; i++) {
+    for (let j = i + 1; j < team2Ids.length; j++) {
+      score += partnershipHistory.get(getPartnerKey(team2Ids[i], team2Ids[j])) ?? 0;
+    }
+  }
+  return score;
+}
+
+export function optimizeTeamSplit(courtPlayers: Player[], partnershipHistory: Map<string, number>): [string[], string[]] {
+  const ids = courtPlayers.map(p => p.id);
+  const [a, b, c, d] = ids;
+  const splits: [string[], string[]][] = [
+    [[a, b], [c, d]],
+    [[a, c], [b, d]],
+    [[a, d], [b, c]],
+  ];
+  const scored = splits.map(([t1, t2]) => ({
+    team1: t1, team2: t2, score: scoreSplit(t1, t2, partnershipHistory),
+  }));
+  const minScore = Math.min(...scored.map(s => s.score));
+  const best = scored.filter(s => s.score === minScore);
+  const pick = best[Math.floor(Math.random() * best.length)];
+  return [pick.team1, pick.team2];
+}
+
 // ── Assignment generation (ported from backend AssignmentService) ────────────
 
 function createAssignments(
@@ -50,7 +108,8 @@ function createAssignments(
   courts: Court[],
   roundId: string,
   playersPerCourt: number,
-  byeCountMap: Map<string, number>
+  byeCountMap: Map<string, number>,
+  partnershipHistoryMap: Map<string, number> = new Map()
 ): Assignment[] {
   const playersNeeded = Math.min(players.length, courts.length * playersPerCourt);
   const fullCourts = Math.floor(playersNeeded / playersPerCourt);
@@ -81,13 +140,23 @@ function createAssignments(
   for (const court of shuffledCourts) {
     const cp = finalOrder.slice(idx, idx + playersPerCourt);
     if (cp.length === playersPerCourt) {
-      const half = playersPerCourt / 2;
+      let team1Ids: string[];
+      let team2Ids: string[];
+
+      if (partnershipHistoryMap.size > 0 && playersPerCourt === 4) {
+        [team1Ids, team2Ids] = optimizeTeamSplit(cp, partnershipHistoryMap);
+      } else {
+        const half = playersPerCourt / 2;
+        team1Ids = cp.slice(0, half).map(p => p.id);
+        team2Ids = cp.slice(half).map(p => p.id);
+      }
+
       assignments.push({
         id: generateId(),
         roundId,
         courtId: court.id,
-        team1PlayerIds: cp.slice(0, half).map(p => p.id),
-        team2PlayerIds: cp.slice(half).map(p => p.id),
+        team1PlayerIds: team1Ids,
+        team2PlayerIds: team2Ids,
         createdAt: new Date(),
       });
     }
@@ -117,12 +186,14 @@ function generateAssignments(
   courts: Court[],
   roundId: string,
   byeCountMap: Map<string, number>,
-  previousAssignments?: Assignment[]
+  previousAssignments?: Assignment[],
+  allPreviousAssignments?: Assignment[]
 ): Assignment[] {
+  const partnershipHistoryMap = buildPartnershipHistory(allPreviousAssignments);
   let attempts = 0;
   let assignments: Assignment[] = [];
   while (attempts < 10) {
-    assignments = createAssignments(players, courts, roundId, 4, byeCountMap);
+    assignments = createAssignments(players, courts, roundId, 4, byeCountMap, partnershipHistoryMap);
     if (!previousAssignments || previousAssignments.length === 0) break;
     if (!areTeamCompositionsIdentical(assignments, previousAssignments)) break;
     attempts++;
@@ -158,14 +229,20 @@ function generateRoundForLeague(store: Store, leagueId: string): { round: Round;
     }
   }
 
-  // Previous round assignments for variety
+  // Previous round assignments for variety check
   let prevAssignments: Assignment[] | undefined;
   if (existingRounds.length > 0) {
     const lastRound = existingRounds[existingRounds.length - 1];
     prevAssignments = store.assignments.filter(a => a.roundId === lastRound.id);
   }
 
-  const newAssignments = generateAssignments(players, courts, round.id, byeCountMap, prevAssignments);
+  // Collect ALL previous assignments for partnership history
+  const allPreviousAssignments: Assignment[] = [];
+  for (const prev of existingRounds) {
+    allPreviousAssignments.push(...store.assignments.filter(a => a.roundId === prev.id));
+  }
+
+  const newAssignments = generateAssignments(players, courts, round.id, byeCountMap, prevAssignments, allPreviousAssignments);
   return { round, newAssignments };
 }
 

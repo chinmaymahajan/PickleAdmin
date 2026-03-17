@@ -10,6 +10,107 @@ import { shuffle } from '../utils/shuffle';
  */
 export class AssignmentService {
   /**
+   * Generate a canonical key for a player pair.
+   * Always sorts IDs lexicographically so (A,B) and (B,A) produce the same key.
+   */
+  getPartnerKey(playerIdA: string, playerIdB: string): string {
+    return playerIdA < playerIdB
+      ? `${playerIdA}_${playerIdB}`
+      : `${playerIdB}_${playerIdA}`;
+  }
+
+  /**
+   * Build a partnership history map from all previous assignments.
+   * Key: canonical pair key "idA_idB" (lexicographically sorted)
+   * Value: number of rounds the pair was on the same team
+   */
+  buildPartnershipHistory(
+    allPreviousAssignments: Assignment[] | undefined
+  ): Map<string, number> {
+    const history = new Map<string, number>();
+
+    if (!allPreviousAssignments || allPreviousAssignments.length === 0) {
+      return history;
+    }
+
+    for (const assignment of allPreviousAssignments) {
+      const teams = [assignment.team1PlayerIds, assignment.team2PlayerIds];
+      for (const team of teams) {
+        for (let i = 0; i < team.length; i++) {
+          for (let j = i + 1; j < team.length; j++) {
+            const key = this.getPartnerKey(team[i], team[j]);
+            history.set(key, (history.get(key) ?? 0) + 1);
+          }
+        }
+      }
+    }
+
+    return history;
+  }
+
+  /**
+   * Score a candidate split by summing partnership counts for all
+   * within-team pairs. Lower is better.
+   */
+  scoreSplit(
+    team1Ids: string[],
+    team2Ids: string[],
+    partnershipHistory: Map<string, number>
+  ): number {
+    let score = 0;
+    for (let i = 0; i < team1Ids.length; i++) {
+      for (let j = i + 1; j < team1Ids.length; j++) {
+        score += partnershipHistory.get(this.getPartnerKey(team1Ids[i], team1Ids[j])) ?? 0;
+      }
+    }
+    for (let i = 0; i < team2Ids.length; i++) {
+      for (let j = i + 1; j < team2Ids.length; j++) {
+        score += partnershipHistory.get(this.getPartnerKey(team2Ids[i], team2Ids[j])) ?? 0;
+      }
+    }
+    return score;
+  }
+
+  /**
+   * Find the optimal 2v2 team split for a group of 4 players.
+   * Evaluates all 3 possible splits and returns the one with the lowest
+   * cumulative partnership score. On ties, selects randomly among tied splits.
+   *
+   * For 4 players [A, B, C, D], the 3 possible splits are:
+   *   Split 1: {A,B} vs {C,D}
+   *   Split 2: {A,C} vs {B,D}
+   *   Split 3: {A,D} vs {B,C}
+   *
+   * @returns [team1PlayerIds, team2PlayerIds] — the best split
+   */
+  optimizeTeamSplit(
+    courtPlayers: Player[],
+    partnershipHistory: Map<string, number>
+  ): [string[], string[]] {
+    const ids = courtPlayers.map(p => p.id);
+    const [a, b, c, d] = ids;
+
+    const splits: [string[], string[]][] = [
+      [[a, b], [c, d]],
+      [[a, c], [b, d]],
+      [[a, d], [b, c]],
+    ];
+
+    const scored = splits.map(([t1, t2]) => ({
+      team1: t1,
+      team2: t2,
+      score: this.scoreSplit(t1, t2, partnershipHistory),
+    }));
+
+    const minScore = Math.min(...scored.map(s => s.score));
+    const best = scored.filter(s => s.score === minScore);
+
+    const pick = best[Math.floor(Math.random() * best.length)];
+    return [pick.team1, pick.team2];
+  }
+
+
+  /**
    * Generate assignments for a round by distributing players across courts
    * 
    * Algorithm:
@@ -44,59 +145,65 @@ export class AssignmentService {
      * @returns Array of assignments with team compositions
      */
     generateAssignments(
-      players: Player[],
-      courts: Court[],
-      roundId: string,
-      playersPerCourt: number = 4,
-      previousAssignments?: Assignment[],
-      byeCountMap?: Map<string, number>
-    ): Assignment[] {
-      // Validate inputs
-      if (players.length === 0) {
-        throw new Error('Cannot generate assignments: no players available');
-      }
+          players: Player[],
+          courts: Court[],
+          roundId: string,
+          playersPerCourt: number = 4,
+          previousAssignments?: Assignment[],
+          byeCountMap?: Map<string, number>,
+          allPreviousAssignments?: Assignment[]
+        ): Assignment[] {
+          // Validate inputs
+          if (players.length === 0) {
+            throw new Error('Cannot generate assignments: no players available');
+          }
 
-      if (courts.length === 0) {
-        throw new Error('Cannot generate assignments: no courts available');
-      }
+          if (courts.length === 0) {
+            throw new Error('Cannot generate assignments: no courts available');
+          }
 
-      // Build bye count map from previous assignments if not provided
-      const effectiveByeCountMap = byeCountMap || new Map<string, number>();
+          // Build bye count map from previous assignments if not provided
+          const effectiveByeCountMap = byeCountMap || new Map<string, number>();
 
-      const maxRetries = 10;
-      let attempts = 0;
-      let assignments: Assignment[] = [];
+          // Build partnership history from all previous assignments
+          const partnershipHistoryMap = this.buildPartnershipHistory(allPreviousAssignments);
 
-      // Keep generating until we get different team compositions or hit max retries
-      while (attempts < maxRetries) {
-        assignments = this.createAssignments(
-          players,
-          courts,
-          roundId,
-          playersPerCourt,
-          effectiveByeCountMap
-        );
+          const maxRetries = 10;
+          let attempts = 0;
+          let assignments: Assignment[] = [];
 
-        // If no previous assignments, we're done
-        if (!previousAssignments || previousAssignments.length === 0) {
-          break;
+          // Keep generating until we get different team compositions or hit max retries
+          while (attempts < maxRetries) {
+            assignments = this.createAssignments(
+              players,
+              courts,
+              roundId,
+              playersPerCourt,
+              effectiveByeCountMap,
+              partnershipHistoryMap
+            );
+
+            // If no previous assignments, we're done
+            if (!previousAssignments || previousAssignments.length === 0) {
+              break;
+            }
+
+            // Check if team compositions are different
+            if (!this.areTeamCompositionsIdentical(assignments, previousAssignments)) {
+              break;
+            }
+
+            attempts++;
+          }
+
+          // Store assignments in dataStore
+          assignments.forEach(assignment => {
+            dataStore.createAssignment(assignment);
+          });
+
+          return assignments;
         }
 
-        // Check if team compositions are different
-        if (!this.areTeamCompositionsIdentical(assignments, previousAssignments)) {
-          break;
-        }
-
-        attempts++;
-      }
-
-      // Store assignments in dataStore
-      assignments.forEach(assignment => {
-        dataStore.createAssignment(assignment);
-      });
-
-      return assignments;
-    }
 
     /**
      * Create assignments, prioritizing players with the most byes.
@@ -107,78 +214,89 @@ export class AssignmentService {
      * @private
      */
     private createAssignments(
-      players: Player[],
-      courts: Court[],
-      roundId: string,
-      playersPerCourt: number,
-      byeCountMap: Map<string, number> = new Map()
-    ): Assignment[] {
-      const playersNeeded = Math.min(players.length, courts.length * playersPerCourt);
-      // Number of full courts we can fill
-      const fullCourts = Math.floor(playersNeeded / playersPerCourt);
-      const slotsToFill = fullCourts * playersPerCourt;
+          players: Player[],
+          courts: Court[],
+          roundId: string,
+          playersPerCourt: number,
+          byeCountMap: Map<string, number> = new Map(),
+          partnershipHistoryMap: Map<string, number> = new Map()
+        ): Assignment[] {
+          const playersNeeded = Math.min(players.length, courts.length * playersPerCourt);
+          // Number of full courts we can fill
+          const fullCourts = Math.floor(playersNeeded / playersPerCourt);
+          const slotsToFill = fullCourts * playersPerCourt;
 
-      // Group players by bye count
-      const byeCountGroups = new Map<number, Player[]>();
-      for (const p of players) {
-        const count = byeCountMap.get(p.id) || 0;
-        if (!byeCountGroups.has(count)) byeCountGroups.set(count, []);
-        byeCountGroups.get(count)!.push(p);
-      }
+          // Group players by bye count
+          const byeCountGroups = new Map<number, Player[]>();
+          for (const p of players) {
+            const count = byeCountMap.get(p.id) || 0;
+            if (!byeCountGroups.has(count)) byeCountGroups.set(count, []);
+            byeCountGroups.get(count)!.push(p);
+          }
 
-      // Sort groups by bye count descending (most byes first = highest priority to play)
-      const sortedCounts = [...byeCountGroups.keys()].sort((a, b) => b - a);
+          // Sort groups by bye count descending (most byes first = highest priority to play)
+          const sortedCounts = [...byeCountGroups.keys()].sort((a, b) => b - a);
 
-      // Shuffle within each group, then concatenate
-      const ordered: Player[] = [];
-      for (const count of sortedCounts) {
-        ordered.push(...shuffle([...byeCountGroups.get(count)!]));
-      }
+          // Shuffle within each group, then concatenate
+          const ordered: Player[] = [];
+          for (const count of sortedCounts) {
+            ordered.push(...shuffle([...byeCountGroups.get(count)!]));
+          }
 
-      // Take exactly enough players to fill full courts — priority players first
-      const playersToAssign = ordered.slice(0, slotsToFill);
+          // Take exactly enough players to fill full courts — priority players first
+          const playersToAssign = ordered.slice(0, slotsToFill);
 
-      // Shuffle the selected players so high-bye players aren't always on the same courts
-      const finalOrder = shuffle([...playersToAssign]);
+          // Shuffle the selected players so high-bye players aren't always on the same courts
+          const finalOrder = shuffle([...playersToAssign]);
 
-      // Shuffle courts for variety
-      const shuffledCourts = shuffle([...courts]);
+          // Shuffle courts for variety
+          const shuffledCourts = shuffle([...courts]);
 
-      const assignments: Assignment[] = [];
-      let playerIndex = 0;
+          const assignments: Assignment[] = [];
+          let playerIndex = 0;
 
-      for (const court of shuffledCourts) {
-        const courtPlayers = finalOrder.slice(
-          playerIndex,
-          playerIndex + playersPerCourt
-        );
+          for (const court of shuffledCourts) {
+            const courtPlayers = finalOrder.slice(
+              playerIndex,
+              playerIndex + playersPerCourt
+            );
 
-        if (courtPlayers.length === playersPerCourt) {
-          const teamSize = playersPerCourt / 2;
-          const team1 = courtPlayers.slice(0, teamSize);
-          const team2 = courtPlayers.slice(teamSize);
+            if (courtPlayers.length === playersPerCourt) {
+              let team1Ids: string[];
+              let team2Ids: string[];
 
-          const assignment: Assignment = {
-            id: dataStore.generateId(),
-            roundId,
-            courtId: court.id,
-            team1PlayerIds: team1.map(p => p.id),
-            team2PlayerIds: team2.map(p => p.id),
-            createdAt: new Date()
-          };
+              if (partnershipHistoryMap.size > 0 && playersPerCourt === 4) {
+                // Use partnership-aware team splitting
+                [team1Ids, team2Ids] = this.optimizeTeamSplit(courtPlayers, partnershipHistoryMap);
+              } else {
+                // Default: simple first-half/second-half split
+                const teamSize = playersPerCourt / 2;
+                team1Ids = courtPlayers.slice(0, teamSize).map(p => p.id);
+                team2Ids = courtPlayers.slice(teamSize).map(p => p.id);
+              }
 
-          assignments.push(assignment);
+              const assignment: Assignment = {
+                id: dataStore.generateId(),
+                roundId,
+                courtId: court.id,
+                team1PlayerIds: team1Ids,
+                team2PlayerIds: team2Ids,
+                createdAt: new Date()
+              };
+
+              assignments.push(assignment);
+            }
+
+            playerIndex += playersPerCourt;
+
+            if (playerIndex >= finalOrder.length) {
+              break;
+            }
+          }
+
+          return assignments;
         }
 
-        playerIndex += playersPerCourt;
-
-        if (playerIndex >= finalOrder.length) {
-          break;
-        }
-      }
-
-      return assignments;
-    }
 
     /**
      * Check if team compositions are identical between two sets of assignments

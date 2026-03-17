@@ -68,7 +68,7 @@ describe('TVDisplay', () => {
   it('shows waiting players not assigned to any court', () => {
     render(<TVDisplay {...defaultProps} />);
     expect(screen.getByText(/Eve/)).toBeInTheDocument();
-    expect(screen.getByText('🪑 Next In Line')).toBeInTheDocument();
+    expect(screen.getByText('🪑 On Bench')).toBeInTheDocument();
   });
 
   it('does not show waiting section when all players are assigned', () => {
@@ -77,7 +77,7 @@ describe('TVDisplay', () => {
       { id: 'a2', roundId: 'r1', courtId: 'c2', team1PlayerIds: ['p5'], team2PlayerIds: [], createdAt: new Date() },
     ];
     render(<TVDisplay {...defaultProps} assignments={allAssigned} />);
-    expect(screen.queryByText('🪑 Next In Line')).not.toBeInTheDocument();
+    expect(screen.queryByText('🪑 On Bench')).not.toBeInTheDocument();
   });
 
   it('calls onExit when overlay is clicked', () => {

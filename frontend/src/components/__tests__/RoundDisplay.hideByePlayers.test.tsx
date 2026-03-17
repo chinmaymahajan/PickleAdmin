@@ -34,7 +34,7 @@ const mockAssignments: Assignment[] = [
 ];
 
 describe('RoundDisplay — hideByePlayers prop', () => {
-  it('should show "Next In Line" by default when players are on bye', () => {
+  it('should show "On Bench" by default when players are on bye', () => {
     render(
       <RoundDisplay
         round={mockRound}
@@ -44,11 +44,11 @@ describe('RoundDisplay — hideByePlayers prop', () => {
         byeCounts={{ p5: 2 }}
       />
     );
-    expect(screen.getByText('🪑 Next In Line')).toBeInTheDocument();
+    expect(screen.getByText('🪑 On Bench')).toBeInTheDocument();
     expect(screen.getByText(/Eve/)).toBeInTheDocument();
   });
 
-  it('should hide "Next In Line" when hideByePlayers is true', () => {
+  it('should hide "On Bench" when hideByePlayers is true', () => {
     render(
       <RoundDisplay
         round={mockRound}
@@ -59,10 +59,10 @@ describe('RoundDisplay — hideByePlayers prop', () => {
         hideByePlayers={true}
       />
     );
-    expect(screen.queryByText('🪑 Next In Line')).not.toBeInTheDocument();
+    expect(screen.queryByText('🪑 On Bench')).not.toBeInTheDocument();
   });
 
-  it('should show "Next In Line" when hideByePlayers is false', () => {
+  it('should show "On Bench" when hideByePlayers is false', () => {
     render(
       <RoundDisplay
         round={mockRound}
@@ -73,6 +73,6 @@ describe('RoundDisplay — hideByePlayers prop', () => {
         hideByePlayers={false}
       />
     );
-    expect(screen.getByText('🪑 Next In Line')).toBeInTheDocument();
+    expect(screen.getByText('🪑 On Bench')).toBeInTheDocument();
   });
 });

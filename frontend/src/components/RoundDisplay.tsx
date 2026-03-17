@@ -274,7 +274,7 @@ const RoundDisplay: React.FC<RoundDisplayProps> = ({
 
       {playersOnBye.length > 0 && !hideByePlayers && (
         <div className="players-waiting">
-          <h3>🪑 Next In Line</h3>
+          <h3>🪑 On Bench</h3>
           <ul>
             {[...playersOnBye]
               .sort((a, b) => (byeCounts[b.id] || 0) - (byeCounts[a.id] || 0))

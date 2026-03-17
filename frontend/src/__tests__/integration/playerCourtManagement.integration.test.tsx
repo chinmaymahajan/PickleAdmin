@@ -56,6 +56,11 @@ async function renderWithSelectedLeague(
     expect(screen.getByRole('heading', { name: 'Players' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Courts' })).toBeInTheDocument();
   });
+
+  // Wait for loadLeagueData to finish (loading overlay disappears)
+  await waitFor(() => {
+    expect(screen.queryByText('Loading...')).not.toBeInTheDocument();
+  });
 }
 
 describe('Player & Court Management Integration Tests', () => {

@@ -466,3 +466,67 @@ describe('Auto Mode Timer & Break Flow Integration Tests', () => {
     });
   });
 });
+
+describe('Auto Mode Background Tab Recovery', () => {
+  beforeEach(() => {
+    jest.useFakeTimers();
+    jest.clearAllMocks();
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  it('F11.9 - timer catches up after tab goes to background and returns', async () => {
+    await renderAndSetupAutoMode({ totalRounds: 3, breakMinutes: 2, roundDurationMinutes: 10 });
+    await startAutoSession();
+
+    // Advance past initial break to start Round 1
+    await act(async () => {
+      jest.advanceTimersByTime(2 * 60 * 1000 + 100);
+    });
+
+    // Verify Round 1 is active
+    await waitFor(() => {
+      const timerLabel = document.querySelector('.timer-label');
+      expect(timerLabel?.textContent).toBe('remaining');
+    });
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { name: 'Round 1' })).toBeInTheDocument();
+    });
+
+    // Simulate tab going to background — advance time past Round 1 only
+    // (10 min round). The break hasn't started yet because the advance
+    // effect hasn't fired while backgrounded.
+    await act(async () => {
+      jest.advanceTimersByTime(10 * 60 * 1000 + 200);
+    });
+
+    // Simulate tab becoming visible again — fire visibilitychange
+    await act(async () => {
+      Object.defineProperty(document, 'visibilityState', {
+        value: 'visible',
+        writable: true,
+        configurable: true,
+      });
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+
+    // After catching up: Round 1 expired → break starts
+    // The break timer is set to 2 min from now, so advance past it
+    await act(async () => {
+      jest.advanceTimersByTime(2 * 60 * 1000 + 200);
+    });
+
+    // Round 2 should now be active
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { name: 'Round 2' })).toBeInTheDocument();
+    });
+
+    // Timer should be running for Round 2
+    await waitFor(() => {
+      const timerLabel = document.querySelector('.timer-label');
+      expect(timerLabel?.textContent).toBe('remaining');
+    });
+  });
+});

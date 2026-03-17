@@ -946,3 +946,931 @@ describe('Property-Based Integration Tests', () => {
     }, 60000);
   });
 });
+
+// Feature: partner-uniqueness-optimization, Property 1: Canonical Key Symmetry
+// For any two player IDs a and b, getPartnerKey(a, b) === getPartnerKey(b, a)
+// **Validates: Requirement 1.2**
+describe('Partner Uniqueness - Property 1: Canonical Key Symmetry', () => {
+  const { AssignmentService } = require('../../services/AssignmentService');
+  const service = new AssignmentService();
+
+  // Arbitrary: non-empty alphanumeric player IDs
+  const playerIdArb = fc.stringMatching(/^[a-zA-Z0-9]{1,30}$/);
+
+  it('getPartnerKey(a, b) === getPartnerKey(b, a) for any two player IDs', () => {
+    fc.assert(
+      fc.property(playerIdArb, playerIdArb, (a, b) => {
+        expect(service.getPartnerKey(a, b)).toBe(service.getPartnerKey(b, a));
+      }),
+      { numRuns: 1000 }
+    );
+  });
+
+  it('getPartnerKey always produces a key with underscore separator and sorted IDs', () => {
+    fc.assert(
+      fc.property(playerIdArb, playerIdArb, (a, b) => {
+        const key = service.getPartnerKey(a, b);
+        const parts = key.split('_');
+        expect(parts.length).toBe(2);
+        // First part should be lexicographically <= second part
+        expect(parts[0] <= parts[1]).toBe(true);
+      }),
+      { numRuns: 1000 }
+    );
+  });
+});
+
+
+// Feature: partner-uniqueness-optimization, Property 2: Partnership History Correctness
+// For any set of assignments, the map contains correct counts for all within-team pairs
+// Total entries equals sum of C(S,2) across all teams
+// **Validates: Requirements 1.1, 1.3**
+describe('Partner Uniqueness - Property 2: Partnership History Correctness', () => {
+  const { AssignmentService } = require('../../services/AssignmentService');
+  const service = new AssignmentService();
+
+  // Arbitrary: non-empty alphanumeric player IDs
+  const playerIdArb = fc.stringMatching(/^[a-zA-Z0-9]{1,20}$/);
+
+  // Arbitrary: a team of 1-4 unique player IDs
+  const teamArb = fc.uniqueArray(playerIdArb, { minLength: 1, maxLength: 4 });
+
+  // Arbitrary: a single assignment with two teams
+  const assignmentArb = fc.tuple(teamArb, teamArb).map(([team1, team2]) => ({
+    id: 'a-id',
+    roundId: 'r-id',
+    courtId: 'c-id',
+    team1PlayerIds: team1,
+    team2PlayerIds: team2,
+    createdAt: new Date(),
+  }));
+
+  // Arbitrary: a list of 0-5 assignments
+  const assignmentsArb = fc.array(assignmentArb, { minLength: 0, maxLength: 5 });
+
+  // Helper: C(n,2) = n*(n-1)/2
+  const choose2 = (n: number) => (n * (n - 1)) / 2;
+
+  it('map contains correct counts for all within-team pairs and total entries equals sum of C(S,2)', () => {
+    fc.assert(
+      fc.property(assignmentsArb, (assignments) => {
+        const history = service.buildPartnershipHistory(assignments);
+
+        // Independently compute expected counts
+        const expected = new Map<string, number>();
+        for (const assignment of assignments) {
+          for (const team of [assignment.team1PlayerIds, assignment.team2PlayerIds]) {
+            for (let i = 0; i < team.length; i++) {
+              for (let j = i + 1; j < team.length; j++) {
+                const key = service.getPartnerKey(team[i], team[j]);
+                expected.set(key, (expected.get(key) ?? 0) + 1);
+              }
+            }
+          }
+        }
+
+        // Every expected pair should be in the history with the correct count
+        for (const [key, count] of expected) {
+          expect(history.get(key)).toBe(count);
+        }
+
+        // History should not contain any extra entries
+        expect(history.size).toBe(expected.size);
+
+        // Total entries equals sum of C(S,2) across all teams (counting unique keys)
+        // Verify via an alternative calculation: sum of C(S,2) across all teams
+        // equals the total number of pair increments, which equals sum of all values
+        let totalPairIncrements = 0;
+        for (const assignment of assignments) {
+          for (const team of [assignment.team1PlayerIds, assignment.team2PlayerIds]) {
+            totalPairIncrements += choose2(team.length);
+          }
+        }
+        const totalHistoryValues = (Array.from(history.values()) as number[]).reduce((s, v) => s + v, 0);
+        expect(totalHistoryValues).toBe(totalPairIncrements);
+      }),
+      { numRuns: 500 }
+    );
+  });
+
+  it('empty assignments produce an empty map', () => {
+    fc.assert(
+      fc.property(fc.constant([]), (assignments) => {
+        const history = service.buildPartnershipHistory(assignments);
+        expect(history.size).toBe(0);
+      }),
+      { numRuns: 1 }
+    );
+  });
+});
+
+
+
+// Feature: partner-uniqueness-optimization, Property 3: Partnership History Non-Negative Invariant
+// For any set of assignments (including empty), every value in the map is a non-negative integer
+// **Validates: Requirement 1.5**
+describe('Partner Uniqueness - Property 3: Partnership History Non-Negative Invariant', () => {
+  const { AssignmentService } = require('../../services/AssignmentService');
+  const service = new AssignmentService();
+
+  const playerIdArb = fc.stringMatching(/^[a-zA-Z0-9]{1,20}$/);
+  const teamArb = fc.uniqueArray(playerIdArb, { minLength: 1, maxLength: 4 });
+
+  const assignmentArb = fc.tuple(teamArb, teamArb).map(([team1, team2]) => ({
+    id: 'a-id',
+    roundId: 'r-id',
+    courtId: 'c-id',
+    team1PlayerIds: team1,
+    team2PlayerIds: team2,
+    createdAt: new Date(),
+  }));
+
+  const assignmentsArb = fc.array(assignmentArb, { minLength: 0, maxLength: 10 });
+
+  it('every value in the partnership history map is a non-negative integer', () => {
+    fc.assert(
+      fc.property(assignmentsArb, (assignments) => {
+        const history = service.buildPartnershipHistory(assignments);
+        for (const value of history.values()) {
+          expect(value).toBeGreaterThanOrEqual(0);
+          expect(Number.isInteger(value)).toBe(true);
+        }
+      }),
+      { numRuns: 1000 }
+    );
+  });
+
+  it('empty assignments produce an empty map (trivially non-negative)', () => {
+    const history = service.buildPartnershipHistory([]);
+    expect(history.size).toBe(0);
+  });
+
+  it('undefined input produces an empty map (trivially non-negative)', () => {
+    const history = service.buildPartnershipHistory(undefined);
+    expect(history.size).toBe(0);
+  });
+});
+
+// Feature: partner-uniqueness-optimization, Property 4: Split Optimality
+// For any 4 players and any partnership history, the chosen split has score ≤ every other possible split's score
+// **Validates: Requirements 2.1, 2.3, 2.4, 2.5, 3.1**
+describe('Partner Uniqueness - Property 4: Split Optimality', () => {
+  const { AssignmentService } = require('../../services/AssignmentService');
+  const service = new AssignmentService();
+
+  const playerIdArb = fc.stringMatching(/^[a-zA-Z0-9]{1,20}$/);
+
+  // Arbitrary: 4 unique player IDs as Player objects
+  const fourPlayersArb = fc.uniqueArray(playerIdArb, { minLength: 4, maxLength: 4 }).map(
+    ids => ids.map(id => ({ id, name: id, leagueId: 'l', createdAt: new Date() }))
+  );
+
+  // Arbitrary: a partnership history map with random counts for random pairs
+  const partnershipHistoryArb = fc
+    .array(
+      fc.tuple(playerIdArb, playerIdArb, fc.integer({ min: 0, max: 20 })),
+      { minLength: 0, maxLength: 15 }
+    )
+    .map(entries => {
+      const map = new Map<string, number>();
+      for (const [a, b, count] of entries) {
+        const key = service.getPartnerKey(a, b);
+        map.set(key, (map.get(key) ?? 0) + count);
+      }
+      return map;
+    });
+
+  it('chosen split has score ≤ every other possible split score', () => {
+    fc.assert(
+      fc.property(fourPlayersArb, partnershipHistoryArb, (players, history) => {
+        const [team1, team2] = service.optimizeTeamSplit(players, history);
+        const chosenScore = service.scoreSplit(team1, team2, history);
+
+        // Enumerate all 3 possible 2v2 splits
+        const ids = players.map((p: any) => p.id);
+        const [a, b, c, d] = ids;
+        const allSplits: [string[], string[]][] = [
+          [[a, b], [c, d]],
+          [[a, c], [b, d]],
+          [[a, d], [b, c]],
+        ];
+
+        for (const [t1, t2] of allSplits) {
+          const altScore = service.scoreSplit(t1, t2, history);
+          expect(chosenScore).toBeLessThanOrEqual(altScore);
+        }
+      }),
+      { numRuns: 1000 }
+    );
+  });
+
+  it('chosen split is optimal even when all pairings have high counts (graceful degradation)', () => {
+    fc.assert(
+      fc.property(fourPlayersArb, (players) => {
+        // Build a history where every pair has a high count
+        const ids = players.map((p: any) => p.id);
+        const history = new Map<string, number>();
+        for (let i = 0; i < ids.length; i++) {
+          for (let j = i + 1; j < ids.length; j++) {
+            history.set(service.getPartnerKey(ids[i], ids[j]), 100);
+          }
+        }
+
+        const [team1, team2] = service.optimizeTeamSplit(players, history);
+        const chosenScore = service.scoreSplit(team1, team2, history);
+
+        const [a, b, c, d] = ids;
+        const allSplits: [string[], string[]][] = [
+          [[a, b], [c, d]],
+          [[a, c], [b, d]],
+          [[a, d], [b, c]],
+        ];
+
+        for (const [t1, t2] of allSplits) {
+          expect(chosenScore).toBeLessThanOrEqual(service.scoreSplit(t1, t2, history));
+        }
+      }),
+      { numRuns: 500 }
+    );
+  });
+});
+
+
+
+// Feature: partner-uniqueness-optimization, Property 5: Score Function Correctness
+// For any candidate split and any partnership history, scoreSplit returns the sum of map values
+// for all within-team pairs, defaulting to 0 for missing pairs
+// **Validates: Requirement 2.2**
+describe('Partner Uniqueness - Property 5: Score Function Correctness', () => {
+  const { AssignmentService } = require('../../services/AssignmentService');
+  const service = new AssignmentService();
+
+  const playerIdArb = fc.stringMatching(/^[a-zA-Z0-9]{1,20}$/);
+
+  // Arbitrary: two teams of 1-4 unique player IDs each
+  const teamArb = fc.uniqueArray(playerIdArb, { minLength: 1, maxLength: 4 });
+
+  // Arbitrary: a partnership history map with random counts for random pairs
+  const partnershipHistoryArb = fc
+    .array(
+      fc.tuple(playerIdArb, playerIdArb, fc.integer({ min: 0, max: 50 })),
+      { minLength: 0, maxLength: 20 }
+    )
+    .map(entries => {
+      const map = new Map<string, number>();
+      for (const [a, b, count] of entries) {
+        const key = service.getPartnerKey(a, b);
+        map.set(key, (map.get(key) ?? 0) + count);
+      }
+      return map;
+    });
+
+  it('scoreSplit returns the sum of partnership history counts for all within-team pairs', () => {
+    fc.assert(
+      fc.property(teamArb, teamArb, partnershipHistoryArb, (team1, team2, history) => {
+        const actual = service.scoreSplit(team1, team2, history);
+
+        // Independently compute expected score
+        let expected = 0;
+        // Sum within-team pairs for team1
+        for (let i = 0; i < team1.length; i++) {
+          for (let j = i + 1; j < team1.length; j++) {
+            const key = service.getPartnerKey(team1[i], team1[j]);
+            expected += history.get(key) ?? 0;
+          }
+        }
+        // Sum within-team pairs for team2
+        for (let i = 0; i < team2.length; i++) {
+          for (let j = i + 1; j < team2.length; j++) {
+            const key = service.getPartnerKey(team2[i], team2[j]);
+            expected += history.get(key) ?? 0;
+          }
+        }
+
+        expect(actual).toBe(expected);
+      }),
+      { numRuns: 1000 }
+    );
+  });
+
+  it('scoreSplit returns 0 when partnership history is empty', () => {
+    fc.assert(
+      fc.property(teamArb, teamArb, (team1, team2) => {
+        const emptyHistory = new Map<string, number>();
+        expect(service.scoreSplit(team1, team2, emptyHistory)).toBe(0);
+      }),
+      { numRuns: 500 }
+    );
+  });
+
+  it('scoreSplit returns 0 when teams have single players (no pairs)', () => {
+    fc.assert(
+      fc.property(playerIdArb, playerIdArb, partnershipHistoryArb, (p1, p2, history) => {
+        expect(service.scoreSplit([p1], [p2], history)).toBe(0);
+      }),
+      { numRuns: 500 }
+    );
+  });
+
+  it('scoreSplit only considers within-team pairs, not cross-team pairs', () => {
+    fc.assert(
+      fc.property(
+        fc.uniqueArray(playerIdArb, { minLength: 4, maxLength: 4 }),
+        (ids) => {
+          const [a, b, c, d] = ids;
+          // Set up history where only cross-team pairs have counts
+          const history = new Map<string, number>();
+          history.set(service.getPartnerKey(a, c), 10);
+          history.set(service.getPartnerKey(a, d), 10);
+          history.set(service.getPartnerKey(b, c), 10);
+          history.set(service.getPartnerKey(b, d), 10);
+
+          // Split: {a,b} vs {c,d} — no within-team pairs have history
+          expect(service.scoreSplit([a, b], [c, d], history)).toBe(0);
+        }
+      ),
+      { numRuns: 500 }
+    );
+  });
+});
+
+// Feature: partner-uniqueness-optimization, Property 6: Optimizer Robustness
+// For any 4 players and any partnership history (including high counts),
+// optimizeTeamSplit returns a valid split of 2+2 without error
+// **Validates: Requirements 3.1, 3.2**
+describe('Partner Uniqueness - Property 6: Optimizer Robustness', () => {
+  const { AssignmentService } = require('../../services/AssignmentService');
+  const service = new AssignmentService();
+
+  const playerIdArb = fc.stringMatching(/^[a-zA-Z0-9]{1,20}$/);
+
+  // Arbitrary: 4 unique player IDs as Player objects
+  const fourPlayersArb = fc.uniqueArray(playerIdArb, { minLength: 4, maxLength: 4 }).map(
+    ids => ids.map(id => ({ id, name: id, leagueId: 'l', createdAt: new Date() }))
+  );
+
+  // Arbitrary: partnership history with potentially high counts
+  const partnershipHistoryArb = fc
+    .array(
+      fc.tuple(playerIdArb, playerIdArb, fc.integer({ min: 0, max: 10000 })),
+      { minLength: 0, maxLength: 20 }
+    )
+    .map(entries => {
+      const map = new Map<string, number>();
+      for (const [a, b, count] of entries) {
+        const key = service.getPartnerKey(a, b);
+        map.set(key, (map.get(key) ?? 0) + count);
+      }
+      return map;
+    });
+
+  it('returns a valid 2+2 split for any 4 players and any partnership history', () => {
+    fc.assert(
+      fc.property(fourPlayersArb, partnershipHistoryArb, (players, history) => {
+        const [team1, team2] = service.optimizeTeamSplit(players, history);
+
+        // Both teams must have exactly 2 players
+        expect(team1).toHaveLength(2);
+        expect(team2).toHaveLength(2);
+
+        // All 4 original player IDs must be present across both teams
+        const allIds = [...team1, ...team2].sort();
+        const originalIds = players.map((p: any) => p.id).sort();
+        expect(allIds).toEqual(originalIds);
+
+        // No duplicates across teams
+        const uniqueIds = new Set([...team1, ...team2]);
+        expect(uniqueIds.size).toBe(4);
+      }),
+      { numRuns: 1000 }
+    );
+  });
+
+  it('returns a valid split when all pairings have very high counts', () => {
+    fc.assert(
+      fc.property(fourPlayersArb, (players) => {
+        const ids = players.map((p: any) => p.id);
+        const history = new Map<string, number>();
+        for (let i = 0; i < ids.length; i++) {
+          for (let j = i + 1; j < ids.length; j++) {
+            history.set(service.getPartnerKey(ids[i], ids[j]), 9999);
+          }
+        }
+
+        const [team1, team2] = service.optimizeTeamSplit(players, history);
+
+        expect(team1).toHaveLength(2);
+        expect(team2).toHaveLength(2);
+
+        const allIds = [...team1, ...team2].sort();
+        const originalIds = ids.sort();
+        expect(allIds).toEqual(originalIds);
+      }),
+      { numRuns: 500 }
+    );
+  });
+
+  it('returns a valid split when partnership history is empty', () => {
+    fc.assert(
+      fc.property(fourPlayersArb, (players) => {
+        const emptyHistory = new Map<string, number>();
+        const [team1, team2] = service.optimizeTeamSplit(players, emptyHistory);
+
+        expect(team1).toHaveLength(2);
+        expect(team2).toHaveLength(2);
+
+        const allIds = [...team1, ...team2].sort();
+        const originalIds = players.map((p: any) => p.id).sort();
+        expect(allIds).toEqual(originalIds);
+      }),
+      { numRuns: 500 }
+    );
+  });
+});
+
+
+// Feature: partner-uniqueness-optimization, Property 7: History Includes All Historical Players
+// For any set of previous assignments containing player IDs not in current roster,
+// buildPartnershipHistory includes entries for all historical players
+// **Validates: Requirement 7.1**
+describe('Partner Uniqueness - Property 7: History Includes All Historical Players', () => {
+  const { AssignmentService } = require('../../services/AssignmentService');
+  const service = new AssignmentService();
+
+  const playerIdArb = fc.stringMatching(/^[a-zA-Z0-9]{1,20}$/);
+
+  // Arbitrary: a team of 2-4 unique player IDs
+  const teamArb = fc.uniqueArray(playerIdArb, { minLength: 2, maxLength: 4 });
+
+  // Arbitrary: a single assignment with two teams
+  const assignmentArb = fc.tuple(teamArb, teamArb).map(([team1, team2]) => ({
+    id: 'a-id',
+    roundId: 'r-id',
+    courtId: 'c-id',
+    team1PlayerIds: team1,
+    team2PlayerIds: team2,
+    createdAt: new Date(),
+  }));
+
+  // Arbitrary: a list of 1-5 assignments
+  const assignmentsArb = fc.array(assignmentArb, { minLength: 1, maxLength: 5 });
+
+  // Arbitrary: a "current roster" that is a subset of all historical player IDs
+  // We generate assignments first, then pick a subset of players as the "current roster"
+  const scenarioArb = assignmentsArb.chain(assignments => {
+    // Collect all unique player IDs from all assignments
+    const allIds = new Set<string>();
+    for (const a of assignments) {
+      for (const id of [...a.team1PlayerIds, ...a.team2PlayerIds]) {
+        allIds.add(id);
+      }
+    }
+    const allIdsArray = [...allIds];
+    // Generate a subset (possibly empty) to represent the "current roster"
+    return fc.subarray(allIdsArray, { minLength: 0 }).map(currentRoster => ({
+      assignments,
+      currentRoster: new Set(currentRoster),
+      allHistoricalIds: allIds,
+    }));
+  });
+
+  it('partnership history includes pair entries for all players that appeared in assignments, regardless of current roster', () => {
+    fc.assert(
+      fc.property(scenarioArb, ({ assignments, allHistoricalIds }) => {
+        const history = service.buildPartnershipHistory(assignments);
+
+        // Collect all player IDs that appear in the history map keys
+        const idsInHistory = new Set<string>();
+        for (const key of history.keys()) {
+          const [idA, idB] = key.split('_');
+          idsInHistory.add(idA);
+          idsInHistory.add(idB);
+        }
+
+        // Every player who was on a team with at least one other player
+        // should appear in the history map
+        for (const assignment of assignments) {
+          for (const team of [assignment.team1PlayerIds, assignment.team2PlayerIds]) {
+            if (team.length >= 2) {
+              for (const playerId of team) {
+                expect(idsInHistory.has(playerId)).toBe(true);
+              }
+            }
+          }
+        }
+      }),
+      { numRuns: 1000 }
+    );
+  });
+
+  it('history entries are not filtered by any external roster — deleted players remain in the map', () => {
+    fc.assert(
+      fc.property(scenarioArb, ({ assignments, currentRoster, allHistoricalIds }) => {
+        const history = service.buildPartnershipHistory(assignments);
+
+        // Collect IDs that appear in teams of size >= 2 (i.e., they form at least one pair)
+        const idsWithPairs = new Set<string>();
+        for (const assignment of assignments) {
+          for (const team of [assignment.team1PlayerIds, assignment.team2PlayerIds]) {
+            if (team.length >= 2) {
+              for (const id of team) {
+                idsWithPairs.add(id);
+              }
+            }
+          }
+        }
+
+        // IDs NOT in the current roster but that formed pairs should still be in history
+        for (const id of idsWithPairs) {
+          if (!currentRoster.has(id)) {
+            // This "deleted" player should still appear in at least one history key
+            let foundInHistory = false;
+            for (const key of history.keys()) {
+              if (key.split('_').includes(id)) {
+                foundInHistory = true;
+                break;
+              }
+            }
+            expect(foundInHistory).toBe(true);
+          }
+        }
+      }),
+      { numRuns: 1000 }
+    );
+  });
+
+  it('history counts are identical whether or not a player is in the current roster', () => {
+    fc.assert(
+      fc.property(scenarioArb, ({ assignments }) => {
+        // Build history twice — the function doesn't take a roster, so the result
+        // must be deterministic and roster-independent
+        const history1 = service.buildPartnershipHistory(assignments);
+        const history2 = service.buildPartnershipHistory(assignments);
+
+        expect(history1.size).toBe(history2.size);
+        for (const [key, count] of history1) {
+          expect(history2.get(key)).toBe(count);
+        }
+      }),
+      { numRuns: 500 }
+    );
+  });
+});
+
+
+// Feature: partner-uniqueness-optimization, Property 8: Scoring Excludes Non-Court Players
+// For any partnership history containing pairs with non-court players,
+// scoreSplit only sums counts for pairs where both IDs are in the court group
+// **Validates: Requirements 7.2, 8.1, 8.2**
+describe('Partner Uniqueness - Property 8: Scoring Excludes Non-Court Players', () => {
+  const { AssignmentService } = require('../../services/AssignmentService');
+  const service = new AssignmentService();
+
+  const playerIdArb = fc.stringMatching(/^[a-zA-Z0-9]{1,20}$/);
+
+  // Arbitrary: 4 unique court player IDs
+  const courtPlayerIdsArb = fc.uniqueArray(playerIdArb, { minLength: 4, maxLength: 4 });
+
+  // Arbitrary: 1-4 unique non-court player IDs (guaranteed distinct from court players)
+  const nonCourtPlayerIdsArb = fc.uniqueArray(playerIdArb, { minLength: 1, maxLength: 4 });
+
+  // Arbitrary: partnership counts
+  const countArb = fc.integer({ min: 1, max: 50 });
+
+  it('scoreSplit only sums counts for pairs where both players are in the court group', () => {
+    fc.assert(
+      fc.property(courtPlayerIdsArb, nonCourtPlayerIdsArb, countArb, (courtIds, nonCourtIds, baseCount) => {
+        // Ensure non-court IDs are actually distinct from court IDs
+        const courtSet = new Set(courtIds);
+        const filteredNonCourt = nonCourtIds.filter(id => !courtSet.has(id));
+        if (filteredNonCourt.length === 0) return; // skip if no distinct non-court players
+
+        const [a, b, c, d] = courtIds;
+
+        // Build a history that includes both court-player pairs and non-court-player pairs
+        const history = new Map<string, number>();
+
+        // Add counts for within-court pairs
+        history.set(service.getPartnerKey(a, b), baseCount);
+        history.set(service.getPartnerKey(c, d), baseCount + 1);
+
+        // Add counts for pairs involving non-court players
+        for (const ncId of filteredNonCourt) {
+          for (const cId of courtIds) {
+            history.set(service.getPartnerKey(ncId, cId), 999);
+          }
+          // Also add pairs between non-court players
+          for (const ncId2 of filteredNonCourt) {
+            if (ncId < ncId2) {
+              history.set(service.getPartnerKey(ncId, ncId2), 999);
+            }
+          }
+        }
+
+        // Score the split {a,b} vs {c,d}
+        const score = service.scoreSplit([a, b], [c, d], history);
+
+        // Expected: only within-team court pairs count
+        // team1 pair (a,b) = baseCount, team2 pair (c,d) = baseCount + 1
+        const expectedScore = baseCount + (baseCount + 1);
+        expect(score).toBe(expectedScore);
+      }),
+      { numRuns: 1000 }
+    );
+  });
+
+  it('scoreSplit returns 0 when all history entries involve non-court players', () => {
+    fc.assert(
+      fc.property(courtPlayerIdsArb, nonCourtPlayerIdsArb, countArb, (courtIds, nonCourtIds, count) => {
+        const courtSet = new Set(courtIds);
+        const filteredNonCourt = nonCourtIds.filter(id => !courtSet.has(id));
+        if (filteredNonCourt.length < 2) return; // need at least 2 non-court players for pairs
+
+        // Build history with only non-court player pairs
+        const history = new Map<string, number>();
+        for (let i = 0; i < filteredNonCourt.length; i++) {
+          for (let j = i + 1; j < filteredNonCourt.length; j++) {
+            history.set(service.getPartnerKey(filteredNonCourt[i], filteredNonCourt[j]), count);
+          }
+          // Also add cross pairs (non-court with court)
+          for (const cId of courtIds) {
+            history.set(service.getPartnerKey(filteredNonCourt[i], cId), count);
+          }
+        }
+
+        const [a, b, c, d] = courtIds;
+        // No within-court-team pairs exist in history, so score should be 0
+        const score = service.scoreSplit([a, b], [c, d], history);
+        expect(score).toBe(0);
+      }),
+      { numRuns: 1000 }
+    );
+  });
+
+  it('adding non-court player pairs to history does not change the score for court teams', () => {
+    fc.assert(
+      fc.property(courtPlayerIdsArb, nonCourtPlayerIdsArb, countArb, (courtIds, nonCourtIds, count) => {
+        const courtSet = new Set(courtIds);
+        const filteredNonCourt = nonCourtIds.filter(id => !courtSet.has(id));
+
+        const [a, b, c, d] = courtIds;
+
+        // Build a baseline history with only court-player pairs
+        const baseHistory = new Map<string, number>();
+        baseHistory.set(service.getPartnerKey(a, b), count);
+        baseHistory.set(service.getPartnerKey(c, d), count);
+
+        const baseScore = service.scoreSplit([a, b], [c, d], baseHistory);
+
+        // Build an augmented history that also includes non-court player pairs
+        const augHistory = new Map<string, number>(baseHistory);
+        for (const ncId of filteredNonCourt) {
+          for (const cId of courtIds) {
+            augHistory.set(service.getPartnerKey(ncId, cId), 999);
+          }
+          for (const ncId2 of filteredNonCourt) {
+            if (ncId < ncId2) {
+              augHistory.set(service.getPartnerKey(ncId, ncId2), 999);
+            }
+          }
+        }
+
+        const augScore = service.scoreSplit([a, b], [c, d], augHistory);
+
+        // Score should be identical — non-court pairs don't affect it
+        expect(augScore).toBe(baseScore);
+      }),
+      { numRuns: 1000 }
+    );
+  });
+});
+
+
+// Feature: partner-uniqueness-optimization, Property 9: Bye Counts Preserved Under Optimization
+// For any league state with players, courts, and previous rounds, the bye count distribution
+// produced when generating a round with partnership optimization enabled is identical to
+// the bye count distribution produced without partnership optimization.
+// **Validates: Requirement 9.3**
+describe('Partner Uniqueness - Property 9: Bye Counts Preserved Under Optimization', () => {
+  const { AssignmentService } = require('../../services/AssignmentService');
+  const { dataStore } = require('../../data/DataStore');
+
+  const playerIdArb = fc.stringMatching(/^[a-zA-Z0-9]{1,20}$/);
+
+  // Arbitrary: 4-10 unique player IDs as Player objects
+  const playersArb = fc.uniqueArray(playerIdArb, { minLength: 4, maxLength: 10 }).map(
+    ids => ids.map(id => ({ id, name: id, leagueId: 'l', createdAt: new Date() }))
+  );
+
+  // Arbitrary: 1-3 court objects
+  const courtsArb = fc.integer({ min: 1, max: 3 }).map(n =>
+    Array.from({ length: n }, (_, i) => ({
+      id: `court-${i}`,
+      identifier: `Court${i + 1}`,
+      leagueId: 'l',
+      createdAt: new Date(),
+    }))
+  );
+
+  // Arbitrary: a bye count map assigning 0-5 byes to each player
+  const byeCountMapArb = (players: { id: string }[]) =>
+    fc.array(fc.integer({ min: 0, max: 5 }), { minLength: players.length, maxLength: players.length }).map(
+      counts => {
+        const map = new Map<string, number>();
+        players.forEach((p, i) => map.set(p.id, counts[i]));
+        return map;
+      }
+    );
+
+  // Arbitrary: previous assignments for partnership history (0-8 assignments)
+  const teamArb = fc.uniqueArray(playerIdArb, { minLength: 2, maxLength: 2 });
+  const prevAssignmentArb = fc.tuple(teamArb, teamArb).map(([team1, team2]) => ({
+    id: 'pa-id',
+    roundId: 'pr-id',
+    courtId: 'pc-id',
+    team1PlayerIds: team1,
+    team2PlayerIds: team2,
+    createdAt: new Date(),
+  }));
+  const prevAssignmentsArb = fc.array(prevAssignmentArb, { minLength: 0, maxLength: 8 });
+
+  it('number of bye players is identical with and without partnership optimization', () => {
+    fc.assert(
+      fc.property(
+        playersArb.chain(players =>
+          fc.tuple(
+            fc.constant(players),
+            courtsArb,
+            byeCountMapArb(players),
+            prevAssignmentsArb
+          )
+        ),
+        ([players, courts, byeCountMap, prevAssignments]) => {
+          const service = new AssignmentService();
+
+          // Generate assignments WITHOUT partnership optimization
+          dataStore.clear();
+          const roundIdA = 'round-no-opt';
+          const assignmentsWithout = service.generateAssignments(
+            players,
+            courts,
+            roundIdA,
+            4,
+            undefined,
+            byeCountMap,
+            undefined // no allPreviousAssignments
+          );
+
+          // Collect assigned player IDs (without optimization)
+          const assignedWithout = new Set<string>();
+          for (const a of assignmentsWithout) {
+            for (const pid of [...a.team1PlayerIds, ...a.team2PlayerIds]) {
+              assignedWithout.add(pid);
+            }
+          }
+          const byeCountWithout = players.length - assignedWithout.size;
+
+          // Generate assignments WITH partnership optimization
+          dataStore.clear();
+          const roundIdB = 'round-with-opt';
+          const assignmentsWith = service.generateAssignments(
+            players,
+            courts,
+            roundIdB,
+            4,
+            undefined,
+            byeCountMap,
+            prevAssignments // allPreviousAssignments provided
+          );
+
+          // Collect assigned player IDs (with optimization)
+          const assignedWith = new Set<string>();
+          for (const a of assignmentsWith) {
+            for (const pid of [...a.team1PlayerIds, ...a.team2PlayerIds]) {
+              assignedWith.add(pid);
+            }
+          }
+          const byeCountWith = players.length - assignedWith.size;
+
+          // The number of bye players must be identical
+          expect(byeCountWith).toBe(byeCountWithout);
+
+          // The number of assignments (courts used) must be identical
+          expect(assignmentsWith.length).toBe(assignmentsWithout.length);
+        }
+      ),
+      { numRuns: 50 }
+    );
+  });
+
+  it('bye count equals players minus courts*playersPerCourt (capped at player count), regardless of optimization', () => {
+    fc.assert(
+      fc.property(
+        playersArb.chain(players =>
+          fc.tuple(
+            fc.constant(players),
+            courtsArb,
+            byeCountMapArb(players),
+            prevAssignmentsArb
+          )
+        ),
+        ([players, courts, byeCountMap, prevAssignments]) => {
+          const service = new AssignmentService();
+          const playersPerCourt = 4;
+
+          // Expected bye count is deterministic based on player/court counts
+          const playersNeeded = Math.min(players.length, courts.length * playersPerCourt);
+          const fullCourts = Math.floor(playersNeeded / playersPerCourt);
+          const slotsToFill = fullCourts * playersPerCourt;
+          const expectedByes = players.length - slotsToFill;
+
+          // WITH optimization
+          dataStore.clear();
+          const assignmentsWith = service.generateAssignments(
+            players, courts, 'r-opt', 4, undefined, byeCountMap, prevAssignments
+          );
+          const assignedWith = new Set<string>();
+          for (const a of assignmentsWith) {
+            for (const pid of [...a.team1PlayerIds, ...a.team2PlayerIds]) {
+              assignedWith.add(pid);
+            }
+          }
+          expect(players.length - assignedWith.size).toBe(expectedByes);
+
+          // WITHOUT optimization
+          dataStore.clear();
+          const assignmentsWithout = service.generateAssignments(
+            players, courts, 'r-no-opt', 4, undefined, byeCountMap, undefined
+          );
+          const assignedWithout = new Set<string>();
+          for (const a of assignmentsWithout) {
+            for (const pid of [...a.team1PlayerIds, ...a.team2PlayerIds]) {
+              assignedWithout.add(pid);
+            }
+          }
+          expect(players.length - assignedWithout.size).toBe(expectedByes);
+        }
+      ),
+      { numRuns: 50 }
+    );
+  });
+
+  it('bye-fair ordering priority is preserved — players with highest bye counts are assigned first regardless of optimization', () => {
+    fc.assert(
+      fc.property(
+        // Generate 5 players with distinct bye counts to make ordering deterministic
+        fc.uniqueArray(playerIdArb, { minLength: 5, maxLength: 5 }).chain(ids => {
+          const players = ids.map(id => ({ id, name: id, leagueId: 'l', createdAt: new Date() }));
+          // Assign distinct bye counts: 4, 3, 2, 1, 0
+          const byeCountMap = new Map<string, number>();
+          players.forEach((p, i) => byeCountMap.set(p.id, 4 - i));
+          return fc.tuple(
+            fc.constant(players),
+            fc.constant(byeCountMap),
+            prevAssignmentsArb
+          );
+        }),
+        ([players, byeCountMap, prevAssignments]) => {
+          const service = new AssignmentService();
+          // 1 court, 4 players per court → 1 bye player
+          const courts = [{ id: 'c1', identifier: 'Court1', leagueId: 'l', createdAt: new Date() }];
+
+          // WITH optimization
+          dataStore.clear();
+          const assignmentsWith = service.generateAssignments(
+            players, courts, 'r1', 4, undefined, byeCountMap, prevAssignments
+          );
+          const assignedWith = new Set<string>();
+          for (const a of assignmentsWith) {
+            for (const pid of [...a.team1PlayerIds, ...a.team2PlayerIds]) {
+              assignedWith.add(pid);
+            }
+          }
+
+          // WITHOUT optimization
+          dataStore.clear();
+          const assignmentsWithout = service.generateAssignments(
+            players, courts, 'r2', 4, undefined, byeCountMap, undefined
+          );
+          const assignedWithout = new Set<string>();
+          for (const a of assignmentsWithout) {
+            for (const pid of [...a.team1PlayerIds, ...a.team2PlayerIds]) {
+              assignedWithout.add(pid);
+            }
+          }
+
+          // The player with the lowest bye count (0 byes) should be on bye in both cases
+          // since all other players have higher bye counts and get priority
+          const lowestByePlayer = players[4]; // bye count = 0
+          expect(assignedWith.has(lowestByePlayer.id)).toBe(false);
+          expect(assignedWithout.has(lowestByePlayer.id)).toBe(false);
+
+          // Both should have exactly 1 bye player
+          expect(players.length - assignedWith.size).toBe(1);
+          expect(players.length - assignedWithout.size).toBe(1);
+        }
+      ),
+      { numRuns: 50 }
+    );
+  });
+});

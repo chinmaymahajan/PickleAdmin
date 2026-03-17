@@ -1,3 +1,4 @@
+import { Assignment } from '../models/Assignment';
 import { Round } from '../models/Round';
 import { dataStore } from '../data/DataStore';
 import { assignmentService } from './AssignmentService';
@@ -96,14 +97,22 @@ export class RoundService {
         previousAssignments = assignmentService.getAssignments(previousRound.id);
       }
 
-      // Generate assignments for this round with bye count fairness
+      // Collect ALL previous assignments for partnership history optimization
+      const allPreviousAssignments: Assignment[] = [];
+      for (const prevRound of existingRounds) {
+        const roundAssignments = assignmentService.getAssignments(prevRound.id);
+        allPreviousAssignments.push(...roundAssignments);
+      }
+
+      // Generate assignments for this round with bye count fairness and partnership optimization
       assignmentService.generateAssignments(
         players,
         courts,
         round.id,
         4, // playersPerCourt
         previousAssignments,
-        byeCountMap
+        byeCountMap,
+        allPreviousAssignments
       );
 
       return round;

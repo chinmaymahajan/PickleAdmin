@@ -117,7 +117,7 @@ const TVDisplay: React.FC<TVDisplayProps> = ({
 
         {waiting.length > 0 && (
           <div className="tv-waiting">
-            <span className="tv-waiting-label">🪑 Next In Line</span>
+            <span className="tv-waiting-label">🪑 On Bench</span>
             <span className="tv-waiting-names">{waiting.map(p => p.name).join('  •  ')}</span>
           </div>
         )}
