@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Court } from '../types';
 import CourtIcon from './CourtIcon';
+import log from '../utils/logger';
 
 interface CourtManagerProps {
   leagueId: string;
@@ -36,6 +37,7 @@ const CourtManager: React.FC<CourtManagerProps> = ({
     if (isNaN(Number(courtIdentifier))) { setError('Please enter a number'); return; }
     if (courts.length >= 30) { setError('Maximum of 30 courts per session reached'); return; }
     if (courts.some(c => c.identifier === `Court ${courtIdentifier.trim()}`)) { setError(`Court ${courtIdentifier.trim()} already exists`); return; }
+    log.court.info('Add court — Court', courtIdentifier.trim());
     setIsSubmitting(true);
     shouldRefocus.current = true;
     try {

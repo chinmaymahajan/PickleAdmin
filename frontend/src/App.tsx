@@ -15,6 +15,7 @@ import { League, Player, Court, Round, Assignment, LeagueFormat } from './types'
 import CourtIcon from './components/CourtIcon';
 import PickleballIcon from './components/PickleballIcon';
 import { playBuzzer, suppressBuzzerFor } from './utils/sound';
+import log from './utils/logger';
 
 function App() {
   const [leagues, setLeagues] = useState<League[]>([]);
@@ -276,61 +277,121 @@ function App() {
 
   // --- Core auto-advance logic (extracted so it can be called from both
   // the React effect AND the interval tick) ---
+  // When the tab is backgrounded, multiple timer periods may have elapsed.
+  // This function loops through all elapsed breaks/rounds until it reaches
+  // a timer that is still in the future, or runs out of rounds.
+  //
+  // Guard: we track the timerEndTime value that was last handled. If the
+  // current timerEndTime matches, we skip (already handled). This is more
+  // robust than a boolean flag because it doesn't require a separate reset
+  // mechanism that can get out of sync with React's effect ordering.
+  const lastHandledTimerRef = useRef<number | null>(null);
+
   const handleAutoAdvance = useCallback(() => {
     if (sessionModeRef.current !== 'auto' || !selectedLeagueId) return;
-    if (timerHandledRef.current) return;
     if (isRestoringSession.current) return;
     if (suppressAdvanceRef.current) {
       suppressAdvanceRef.current = false;
-      timerHandledRef.current = true;
       return;
     }
-    timerHandledRef.current = true;
+
+    const curTimerEnd = timerEndTimeRef.current;
+    if (curTimerEnd === null) return;
+    // Already handled this exact timer expiration
+    if (lastHandledTimerRef.current === curTimerEnd) return;
+    lastHandledTimerRef.current = curTimerEnd;
+
+    log.round.info('handleAutoAdvance — processing timer expiry, timerEndTime:', curTimerEnd);
 
     const curRounds = roundsRef.current;
-    const curAutoActive = autoActiveRoundRef.current;
-    const curIsOnBreak = isOnBreakRef.current;
+    // Mutable copies so we can fast-forward through multiple elapsed periods
+    let simOnBreak = isOnBreakRef.current;
+    let simAutoActive = autoActiveRoundRef.current;
+    let simTimerEnd: number | null = null;
+    let buzzerPlayed = false;
+    // Track whether the session reached its natural end (last round done)
+    let sessionComplete = false;
 
-    if (curIsOnBreak) {
-      let targetRound: Round | undefined;
-      if (!curAutoActive) {
-        targetRound = curRounds.length > 0 ? curRounds[0] : undefined;
-      } else {
-        const currentIndex = curRounds.findIndex(r => r.id === curAutoActive.id);
-        targetRound = currentIndex >= 0 && currentIndex < curRounds.length - 1
-          ? curRounds[currentIndex + 1]
-          : undefined;
-      }
-      if (!targetRound) { setIsOnBreak(false); return; }
-      console.log(`[AUTO] Round ${targetRound.roundNumber} starting (${roundDurationMinutes}m)`);
-      setIsOnBreak(false);
-      setAutoActiveRound(targetRound);
-      setCurrentRound(targetRound);
-      const dur = roundDurationMinutes * 60 * 1000;
-      setTimerEndTime(Date.now() + dur);
-      setTimeRemaining(dur);
-    } else {
-      playBuzzer();
-      if (!curAutoActive) return;
-      const currentIndex = curRounds.findIndex(r => r.id === curAutoActive.id);
-      const nextAutoRound = currentIndex >= 0 && currentIndex < curRounds.length - 1
-        ? curRounds[currentIndex + 1]
-        : undefined;
-      if (!nextAutoRound) return;
-      if (breakMinutes > 0) {
-        console.log(`[AUTO] Break starting (${breakMinutes}m) — Round ${nextAutoRound.roundNumber} up next`);
-        setIsOnBreak(true);
-        const bDur = breakMinutes * 60 * 1000;
-        setTimerEndTime(Date.now() + bDur);
-        setTimeRemaining(bDur);
-      } else {
-        console.log(`[AUTO] Round ${nextAutoRound.roundNumber} starting (${roundDurationMinutes}m, no break)`);
-        setAutoActiveRound(nextAutoRound);
-        setCurrentRound(nextAutoRound);
+    // Loop: keep advancing until the next timer hasn't expired yet or we're done
+    const MAX_ITERATIONS = curRounds.length * 2 + 2; // safety cap
+    for (let i = 0; i < MAX_ITERATIONS; i++) {
+      if (simOnBreak) {
+        // Break just ended — start the next round
+        let targetRound: Round | undefined;
+        if (!simAutoActive) {
+          targetRound = curRounds.length > 0 ? curRounds[0] : undefined;
+        } else {
+          const idx = curRounds.findIndex(r => r.id === simAutoActive!.id);
+          targetRound = idx >= 0 && idx < curRounds.length - 1
+            ? curRounds[idx + 1]
+            : undefined;
+        }
+        if (!targetRound) {
+          // No more rounds — stop
+          simOnBreak = false;
+          break;
+        }
+        console.log(`[AUTO] Round ${targetRound.roundNumber} starting (${roundDurationMinutes}m)`);
+        log.round.info(`Round ${targetRound.roundNumber} in progress out of ${curRounds.length} — starting after break (${roundDurationMinutes}m)`);
+        simOnBreak = false;
+        simAutoActive = targetRound;
         const dur = roundDurationMinutes * 60 * 1000;
-        setTimerEndTime(Date.now() + dur);
-        setTimeRemaining(dur);
+        simTimerEnd = Date.now() + dur;
+        // If this timer is still in the future, we're done fast-forwarding
+        if (simTimerEnd > Date.now()) break;
+      } else {
+        // Round just ended
+        if (!buzzerPlayed) { playBuzzer(); buzzerPlayed = true; }
+        if (!simAutoActive) break;
+        const idx = curRounds.findIndex(r => r.id === simAutoActive!.id);
+        const nextAutoRound = idx >= 0 && idx < curRounds.length - 1
+          ? curRounds[idx + 1]
+          : undefined;
+        if (!nextAutoRound) {
+          // Last round finished — no more to advance; keep timer expired for "Time's up!" UI
+          sessionComplete = true;
+          break;
+        }
+        if (breakMinutes > 0) {
+          console.log(`[AUTO] Break starting (${breakMinutes}m) — Round ${nextAutoRound.roundNumber} up next`);
+          log.round.info(`Break starting (${breakMinutes}m) — Round ${nextAutoRound.roundNumber} of ${curRounds.length} up next`);
+          simOnBreak = true;
+          const bDur = breakMinutes * 60 * 1000;
+          simTimerEnd = Date.now() + bDur;
+          if (simTimerEnd > Date.now()) break;
+        } else {
+          console.log(`[AUTO] Round ${nextAutoRound.roundNumber} starting (${roundDurationMinutes}m, no break)`);
+          log.round.info(`Round ${nextAutoRound.roundNumber} in progress out of ${curRounds.length} — starting (${roundDurationMinutes}m, no break)`);
+          simAutoActive = nextAutoRound;
+          const dur = roundDurationMinutes * 60 * 1000;
+          simTimerEnd = Date.now() + dur;
+          if (simTimerEnd > Date.now()) break;
+        }
       }
+    }
+
+    // Apply the final state all at once
+    // Update refs immediately so any re-entrant calls see the right values
+    isOnBreakRef.current = simOnBreak;
+    autoActiveRoundRef.current = simAutoActive;
+    setIsOnBreak(simOnBreak);
+    setAutoActiveRound(simAutoActive);
+    if (simAutoActive) {
+      setCurrentRound(simAutoActive);
+    }
+    if (sessionComplete) {
+      // Session finished — leave timer in expired state so UI shows "Time's up!"
+      // Don't touch timerEndTime; timeRemaining is already 0 from the tick.
+    } else if (simTimerEnd !== null) {
+      const remaining = Math.max(0, simTimerEnd - Date.now());
+      // Update the ref immediately so the guard works for re-entrant calls
+      timerEndTimeRef.current = simTimerEnd;
+      setTimerEndTime(simTimerEnd);
+      setTimeRemaining(remaining);
+    } else {
+      timerEndTimeRef.current = null;
+      setTimerEndTime(null);
+      setTimeRemaining(0);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedLeagueId, roundDurationMinutes, breakMinutes]);
@@ -356,17 +417,25 @@ function App() {
           Date.now() - timerStartedAtRef.current >= 5000
         ) {
           manualBuzzerFiredRef.current = true;
+          log.timer.info('Manual timer expired — buzzer fired');
           playBuzzer();
+        }
+        // Auto-mode: call advance directly from the tick as a fallback.
+        // This ensures advance happens even if the React effect chain
+        // doesn't fire (e.g. background tab, batched renders).
+        if (sessionModeRef.current === 'auto') {
+          handleAutoAdvance();
         }
       }
     };
     tick();
     timerRef.current = setInterval(tick, 1000);
     return () => { if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; } };
-  }, [timerEndTime]);
+  }, [timerEndTime, handleAutoAdvance]);
 
   const startTimer = useCallback(() => {
     if (timerEnabled && roundDurationMinutes > 0) {
+      log.timer.info('Timer started —', roundDurationMinutes, 'min, mode:', sessionMode === 'auto' ? 'auto' : 'manual');
       const duration = roundDurationMinutes * 60 * 1000;
       setTimerEndTime(Date.now() + duration);
       setTimeRemaining(duration);
@@ -391,12 +460,14 @@ function App() {
   const isOnBreakRef = useRef(isOnBreak);
   const autoActiveRoundRef = useRef(autoActiveRound);
   const roundsRef = useRef(rounds);
+  const timerEndTimeRef = useRef(timerEndTime);
 
   // Keep refs in sync
   useEffect(() => { isOnBreakRef.current = isOnBreak; }, [isOnBreak]);
   useEffect(() => { autoActiveRoundRef.current = autoActiveRound; }, [autoActiveRound]);
   useEffect(() => { roundsRef.current = rounds; }, [rounds]);
   useEffect(() => { sessionModeRef.current = sessionMode; }, [sessionMode]);
+  useEffect(() => { timerEndTimeRef.current = timerEndTime; }, [timerEndTime]);
 
   // Reset handled flag whenever a new timer starts
   useEffect(() => {
@@ -406,7 +477,8 @@ function App() {
   }, [timerActive]);
 
   // Auto-advance: when timer expires in auto mode, start break then next round.
-  // This effect handles the normal (tab-focused) case.
+  // This effect handles the normal (tab-focused) case. The interval tick
+  // also calls handleAutoAdvance as a fallback.
   useEffect(() => {
     if (!timerExpired) return;
     handleAutoAdvance();
@@ -421,6 +493,7 @@ function App() {
       if (timerEndTime === null) return;
       const remaining = timerEndTime - Date.now();
       if (remaining <= 0) {
+        log.timer.info('Tab became visible — timer expired while backgrounded, catching up');
         setTimeRemaining(0);
         handleAutoAdvance();
       }
@@ -439,11 +512,20 @@ function App() {
     : true;
 
   const loadLeagues = async () => {
-    try { setLeagues(await api.listLeagues()); }
-    catch (err: any) { setError(err.message || 'Failed to load leagues'); }
+    log.app.info('Loading leagues…');
+    try {
+      const data = await api.listLeagues();
+      setLeagues(data);
+      log.app.info('Leagues loaded —', data.length, 'leagues');
+    }
+    catch (err: any) {
+      log.app.error('Failed to load leagues', err);
+      setError(err.message || 'Failed to load leagues');
+    }
   };
 
   const loadLeagueData = async (leagueId: string) => {
+    log.app.info('loadLeagueData — league', leagueId);
     setLoading(true);
     setError(null);
     setPendingModeSwitch(null);
@@ -461,6 +543,7 @@ function App() {
       // Restore auto session state if available
       const cached = loadSessionState(leagueId, roundsData);
       if (cached && sessionMode === 'auto' && roundsData.length > 0) {
+        log.app.info('Restoring auto session state — activeRound:', cached.autoActiveRound?.roundNumber ?? 'none', 'isOnBreak:', cached.isOnBreak, 'timerEndTime:', cached.timerEndTime);
         suppressAdvanceRef.current = true; // Prevent auto-advance from firing on restored expired timer
         if (cached.timerEndTime !== null && cached.timerEndTime <= Date.now()) {
           setAutoActiveRound(cached.autoActiveRound);
@@ -476,6 +559,7 @@ function App() {
         setActiveTab(cached.activeTab);
         setCurrentRound(cached.autoActiveRound || roundsData[roundsData.length - 1]);
       } else {
+        log.app.info('No cached session state — using defaults for league', leagueId);
         // No cached state — reset to defaults
         setAutoActiveRound(null);
         setIsOnBreak(false);
@@ -515,31 +599,40 @@ function App() {
         }
       }
     } catch (err: any) {
+      log.app.error('Failed to load league data', err);
       setError(err.message || 'Failed to load league data');
     } finally {
       setLoading(false);
       initialLoadDone.current = true;
       isRestoringSession.current = false;
+      log.app.info('loadLeagueData complete — league', leagueId);
     }
   };
 
   const loadAssignments = async (roundId: string) => {
     try {
-      setAssignments(await api.getAssignments(roundId));
+      const data = await api.getAssignments(roundId);
+      setAssignments(data);
+      log.app.debug('Assignments loaded — round', roundId, data.length, 'assignments');
       if (selectedLeagueId) {
         setByeCounts(await api.getByeCounts(selectedLeagueId));
       }
     }
-    catch (err: any) { setError(err.message || 'Failed to load assignments'); }
+    catch (err: any) {
+      log.app.error('Failed to load assignments for round', roundId, err);
+      setError(err.message || 'Failed to load assignments');
+    }
   };
 
   const handleSelectLeague = async (leagueId: string) => {
+    log.app.info('handleSelectLeague —', leagueId || '(deselect)');
     setError(null);
     setSuccessMessage(null);
     setTvMode(false);
 
     // Save current league's session state before switching
     if (selectedLeagueId) {
+      log.app.debug('Saving session state for league', selectedLeagueId, 'before switch');
       saveSessionState(selectedLeagueId, {
         autoActiveRound,
         timerEndTime,
@@ -583,12 +676,14 @@ function App() {
   };
 
   const handleCreateLeague = async (name: string, format: LeagueFormat) => {
+    log.app.info('handleCreateLeague —', name, format);
     setError(null);
     setSuccessMessage(null);
     try {
       const league = await api.createLeague(name, format);
       setLeagues([...leagues, league]);
       setSuccessMessage(`League "${name}" created`);
+      log.app.info('League created successfully —', league.id);
       setActiveTab('setup');
       setSelectedLeagueId(league.id);
     } catch (err: any) {
@@ -598,6 +693,7 @@ function App() {
   };
 
   const handleDeleteLeague = async (leagueId: string) => {
+    log.app.info('handleDeleteLeague —', leagueId);
     setError(null);
     try {
       await api.deleteLeague(leagueId);
@@ -623,7 +719,11 @@ function App() {
   };
 
   const regenerateIfAutoSession = async () => {
-    if (sessionMode !== 'auto' || !selectedLeagueId || !autoActiveRound || rounds.length === 0) return;
+    if (sessionMode !== 'auto' || !selectedLeagueId || !autoActiveRound || rounds.length === 0) {
+      log.app.debug('regenerateIfAutoSession — skipped (mode:', sessionMode, 'activeRound:', autoActiveRound?.roundNumber ?? 'none', 'rounds:', rounds.length, ')');
+      return;
+    }
+    log.app.info('regenerateIfAutoSession — regenerating future rounds after round', autoActiveRound.roundNumber, 'of', rounds.length);
     try {
       const updatedRounds = await api.regenerateFutureRounds(selectedLeagueId, autoActiveRound.roundNumber);
       setRounds(updatedRounds);
@@ -635,6 +735,7 @@ function App() {
 
   const handleAddPlayer = async (name: string) => {
     if (!selectedLeagueId) return;
+    log.app.info('handleAddPlayer —', name);
     setError(null);
     setSuccessMessage(null);
     try {
@@ -650,6 +751,7 @@ function App() {
 
   const handleImportPlayers = async (names: string[]) => {
     if (!selectedLeagueId) return;
+    log.app.info('handleImportPlayers —', names.length, 'names to import');
     setError(null);
     setSuccessMessage(null);
     const added: Player[] = [];
@@ -660,12 +762,14 @@ function App() {
       } catch { /* skip duplicates */ }
     }
     setPlayers(prev => [...prev, ...added]);
+    log.app.info('Import complete —', added.length, 'of', names.length, 'players added');
     setSuccessMessage(`${added.length} player${added.length !== 1 ? 's' : ''} imported`);
     await regenerateIfAutoSession();
   };
 
   const handleAddCourt = async (identifier: string) => {
     if (!selectedLeagueId) return;
+    log.app.info('handleAddCourt —', identifier);
     setError(null);
     setSuccessMessage(null);
     try {
@@ -680,6 +784,7 @@ function App() {
   };
 
   const handleRemovePlayer = async (playerId: string) => {
+    log.app.info('handleRemovePlayer —', playerId);
     setError(null);
     try {
       await api.deletePlayer(playerId);
@@ -690,6 +795,7 @@ function App() {
   };
 
   const handleRemoveCourt = async (courtId: string) => {
+    log.app.info('handleRemoveCourt —', courtId);
     setError(null);
     try {
       await api.deleteCourt(courtId);
@@ -701,6 +807,7 @@ function App() {
 
   const handleGenerateRound = async () => {
     if (!selectedLeagueId) return;
+    log.round.info('handleGenerateRound — generating round', rounds.length + 1);
     setError(null);
     setSuccessMessage(null);
     setLoading(true);
@@ -709,10 +816,12 @@ function App() {
     suppressBuzzerFor(10000);
     try {
       const round = await api.generateRound(selectedLeagueId);
-      setRounds([...rounds, round]);
+      const newRounds = [...rounds, round];
+      setRounds(newRounds);
       setCurrentRound(round);
       setActiveTab('rounds');
       startTimer();
+      log.round.info(`Round ${round.roundNumber} in progress out of ${newRounds.length} total`);
       setSuccessMessage(`Round ${round.roundNumber} generated`);
     } catch (err: any) {
       setError(err.message || 'Failed to generate round');
@@ -722,10 +831,12 @@ function App() {
 
   const handleStartAutoSession = async () => {
     if (!selectedLeagueId) return;
+    log.round.info('handleStartAutoSession — generating', totalRoundsPlanned, 'rounds, duration:', roundDurationMinutes, 'min, break:', breakMinutes, 'min');
     setError(null);
     setSuccessMessage(null);
     setLoading(true);
     suppressBuzzerFor(10000);
+    lastHandledTimerRef.current = null;
     try {
       for (let i = 0; i < totalRoundsPlanned; i++) {
         await api.generateRound(selectedLeagueId);
@@ -754,12 +865,14 @@ function App() {
         setIsOnBreak(false);
       }
       setSuccessMessage(`${totalRoundsPlanned} rounds generated — session starting`);
+      log.round.info(`Auto session started — Round 1 in progress out of ${totalRoundsPlanned}`);
     } catch (err: any) {
       setError(err.message || 'Failed to start auto session');
     } finally { setLoading(false); }
   };
 
   const handleNavigateToRound = (roundNumber: number) => {
+    log.round.debug('Navigate to round', roundNumber, 'of', rounds.length);
     const round = rounds.find(r => r.roundNumber === roundNumber);
     if (round) setCurrentRound(round);
   };
@@ -770,6 +883,7 @@ function App() {
     team2PlayerIds: string[];
   }>) => {
     if (!currentRound) return;
+    log.app.info('handleUpdateAssignments — round', currentRound.roundNumber, 'of', rounds.length, '—', updates.length, 'courts');
     setError(null);
     setSuccessMessage(null);
     setLoading(true);
@@ -784,6 +898,7 @@ function App() {
   };
 
   const handleSeedMockData = async () => {
+    log.dev.info('handleSeedMockData — seeding mock data');
     setError(null);
     setSuccessMessage(null);
     setLoading(true);
@@ -797,6 +912,7 @@ function App() {
   };
 
   const handleClearAllData = async () => {
+    log.dev.warn('handleClearAllData — clearing all data');
     setError(null);
     setSuccessMessage(null);
     setLoading(true);
@@ -820,6 +936,7 @@ function App() {
 
   const handleModeSwitch = (newMode: 'manual' | 'auto') => {
     if (newMode === sessionMode) return;
+    log.app.info('handleModeSwitch —', sessionMode, '→', newMode, rounds.length > 0 ? '(has rounds, needs confirmation)' : '');
     if (rounds.length > 0) {
       setPendingModeSwitch(newMode);
     } else {
@@ -829,6 +946,7 @@ function App() {
 
   const confirmModeSwitch = async () => {
     if (!pendingModeSwitch || !selectedLeagueId) return;
+    log.app.info('confirmModeSwitch — switching to', pendingModeSwitch, '(clearing rounds)');
     try {
       await api.clearRounds(selectedLeagueId);
       setRounds([]);
@@ -844,6 +962,7 @@ function App() {
       setSessionMode(pendingModeSwitch);
       setPendingModeSwitch(null);
       setActiveTab('setup');
+      lastHandledTimerRef.current = null;
       setSuccessMessage(`Switched to ${pendingModeSwitch} mode — session reset`);
     } catch (err: any) {
       setError(err.message || 'Failed to switch mode');
@@ -1138,6 +1257,7 @@ function App() {
                           setTimerEndTime(null);
                           setIsOnBreak(false);
                           setTimerHidden(false);
+                          lastHandledTimerRef.current = null;
                           clearSessionState(selectedLeagueId);
                           setSuccessMessage('Session reset — players and courts kept');
                         } catch (err: any) {

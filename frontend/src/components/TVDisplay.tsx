@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Round, Assignment, Court, Player } from '../types';
+import log from '../utils/logger';
 
 /** TV Display - full-screen overlay for big screens */
 interface TVDisplayProps {
@@ -42,8 +43,12 @@ const TVDisplay: React.FC<TVDisplayProps> = ({
 
   // Escape key exits TV mode
   useEffect(() => {
+    log.tv.info('TV mode entered — round', displayRound.roundNumber, isOnBreak ? '(on break)' : '');
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onExit();
+      if (e.key === 'Escape') {
+        log.tv.info('TV mode exited via Escape key');
+        onExit();
+      }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);

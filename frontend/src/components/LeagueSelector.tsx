@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { League, LeagueFormat } from '../types';
 import FormatSelector from './FormatSelector';
 import PickleballIcon from './PickleballIcon';
+import log from '../utils/logger';
 
 interface LeagueSelectorProps {
   leagues: League[];
@@ -40,6 +41,7 @@ const LeagueSelector: React.FC<LeagueSelectorProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    log.league.info('Create league submit —', leagueName, selectedFormat);
     if (!leagueName.trim()) { setError('Session name cannot be empty'); return; }
     if (leagues.length >= 10) { setError('Maximum of 10 active sessions reached'); return; }
     if (!onCreateLeague) return;
@@ -56,6 +58,7 @@ const LeagueSelector: React.FC<LeagueSelectorProps> = ({
 
   const handleDelete = async (leagueId: string) => {
     if (!onDeleteLeague) return;
+    log.league.info('Delete league —', leagueId);
     setIsSubmitting(true);
     try {
       await onDeleteLeague(leagueId);

@@ -3,6 +3,7 @@
  * All data lives in the browser. Same interface as the HTTP api client.
  */
 import { League, Player, Court, Round, Assignment, LeagueFormat } from '../types';
+import log from '../utils/logger';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -34,12 +35,20 @@ interface Store {
 function loadStore(): Store {
   try {
     const raw = localStorage.getItem(STORE_KEY);
-    if (raw) return JSON.parse(raw);
-  } catch { /* ignore */ }
+    if (raw) {
+      const store = JSON.parse(raw);
+      log.api.debug('Store loaded —', store.leagues.length, 'leagues,', store.players.length, 'players,', store.courts.length, 'courts,', store.rounds.length, 'rounds,', store.assignments.length, 'assignments');
+      return store;
+    }
+  } catch (err) {
+    log.api.error('Failed to load store from localStorage', err);
+  }
+  log.api.info('No existing store found — returning empty store');
   return { leagues: [], players: [], courts: [], rounds: [], assignments: [] };
 }
 
 function saveStore(store: Store): void {
+  log.api.debug('Saving store —', store.leagues.length, 'leagues,', store.players.length, 'players,', store.courts.length, 'courts,', store.rounds.length, 'rounds,', store.assignments.length, 'assignments');
   localStorage.setItem(STORE_KEY, JSON.stringify(store));
 }
 
@@ -251,17 +260,21 @@ function generateRoundForLeague(store: Store, leagueId: string): { round: Round;
 export const api = {
   // League
   async createLeague(name: string, format: LeagueFormat = LeagueFormat.ROUND_ROBIN): Promise<League> {
+    log.api.info('createLeague —', name, format);
     const store = loadStore();
     if (store.leagues.length >= 10) throw new Error('Maximum of 10 active sessions reached');
     const now = new Date();
     const league: League = { id: generateId(), name, format, createdAt: now, updatedAt: now };
     store.leagues.push(league);
     saveStore(store);
+    log.api.info('League created —', league.id, league.name);
     return league;
   },
 
   async listLeagues(): Promise<League[]> {
-    return loadStore().leagues;
+    const leagues = loadStore().leagues;
+    log.api.debug('listLeagues —', leagues.length, 'leagues');
+    return leagues;
   },
 
   async getLeague(leagueId: string): Promise<League> {
@@ -275,6 +288,7 @@ export const api = {
   },
 
   async deleteLeague(leagueId: string): Promise<void> {
+    log.api.info('deleteLeague —', leagueId);
     const store = loadStore();
     const idx = store.leagues.findIndex(l => l.id === leagueId);
     if (idx === -1) throw new Error('League not found');
@@ -286,10 +300,12 @@ export const api = {
     store.courts = store.courts.filter(c => c.leagueId !== leagueId);
     store.leagues.splice(idx, 1);
     saveStore(store);
+    log.api.info('League deleted —', leagueId, '(cascade: rounds, assignments, players, courts removed)');
   },
 
   // Players
   async addPlayer(leagueId: string, name: string): Promise<Player> {
+    log.api.info('addPlayer —', name, 'to league', leagueId);
     const trimmed = name.trim();
     if (!trimmed) throw new Error('Player name is required');
     if (trimmed.length > 50) throw new Error('Player name must be 50 characters or less');
@@ -307,6 +323,7 @@ export const api = {
   },
 
   async deletePlayer(playerId: string): Promise<void> {
+    log.api.info('deletePlayer —', playerId);
     const store = loadStore();
     store.players = store.players.filter(p => p.id !== playerId);
     saveStore(store);
@@ -314,6 +331,7 @@ export const api = {
 
   // Courts
   async addCourt(leagueId: string, identifier: string): Promise<Court> {
+    log.api.info('addCourt —', identifier, 'to league', leagueId);
     const trimmed = identifier.trim();
     if (!trimmed) throw new Error('Court identifier is required');
     const store = loadStore();
@@ -331,6 +349,7 @@ export const api = {
   },
 
   async deleteCourt(courtId: string): Promise<void> {
+    log.api.info('deleteCourt —', courtId);
     const store = loadStore();
     store.courts = store.courts.filter(c => c.id !== courtId);
     saveStore(store);
@@ -339,14 +358,19 @@ export const api = {
   // Rounds
   async generateRound(leagueId: string): Promise<Round> {
     const store = loadStore();
+    const existingRounds = store.rounds.filter(r => r.leagueId === leagueId);
+    log.api.info('generateRound — league', leagueId, `(existing: ${existingRounds.length} rounds)`);
     const { round, newAssignments } = generateRoundForLeague(store, leagueId);
     store.rounds.push(round);
     store.assignments.push(...newAssignments);
     saveStore(store);
+    const totalRounds = store.rounds.filter(r => r.leagueId === leagueId).length;
+    log.api.info(`Round ${round.roundNumber} generated (${totalRounds} total) —`, newAssignments.length, 'assignments');
     return round;
   },
 
   async regenerateFutureRounds(leagueId: string, afterRoundNumber: number): Promise<Round[]> {
+    log.api.info('regenerateFutureRounds — league', leagueId, 'after round', afterRoundNumber);
     const store = loadStore();
     const allRounds = store.rounds.filter(r => r.leagueId === leagueId).sort((a, b) => a.roundNumber - b.roundNumber);
     const roundsToDelete = allRounds.filter(r => r.roundNumber > afterRoundNumber);
@@ -364,7 +388,9 @@ export const api = {
       store.assignments.push(...newAssignments);
     }
     saveStore(store);
-    return store.rounds.filter(r => r.leagueId === leagueId).sort((a, b) => a.roundNumber - b.roundNumber);
+    const result = store.rounds.filter(r => r.leagueId === leagueId).sort((a, b) => a.roundNumber - b.roundNumber);
+    log.api.info('Regenerated', numToRegenerate, 'future rounds —', result.length, 'total rounds now');
+    return result;
   },
 
   async listRounds(leagueId: string): Promise<Round[]> {
@@ -384,6 +410,7 @@ export const api = {
   },
 
   async clearRounds(leagueId: string): Promise<void> {
+    log.api.info('clearRounds — league', leagueId);
     const store = loadStore();
     const roundIds = new Set(store.rounds.filter(r => r.leagueId === leagueId).map(r => r.id));
     store.assignments = store.assignments.filter(a => !roundIds.has(a.roundId));
@@ -420,6 +447,7 @@ export const api = {
     roundId: string,
     assignments: Array<{ courtId: string; team1PlayerIds: string[]; team2PlayerIds: string[] }>
   ): Promise<Assignment[]> {
+    log.api.info('updateAssignments — round', roundId, assignments.length, 'courts');
     const store = loadStore();
     for (const manual of assignments) {
       const existing = store.assignments.find(a => a.roundId === roundId && a.courtId === manual.courtId);
@@ -443,6 +471,7 @@ export const api = {
 
   // Dev tools
   async seedMockData(): Promise<{ league: League; players: number; courts: number }> {
+    log.api.info('seedMockData — creating mock league with players and courts');
     const store = loadStore();
     const now = new Date();
     const league: League = { id: generateId(), name: 'Morning Open Play', format: LeagueFormat.ROUND_ROBIN, createdAt: now, updatedAt: now };
@@ -462,10 +491,12 @@ export const api = {
       store.courts.push({ id: generateId(), leagueId: league.id, identifier: `Court ${i}`, createdAt: now });
     }
     saveStore(store);
+    log.api.info('Mock data seeded —', names.length, 'players, 6 courts');
     return { league, players: names.length, courts: 6 };
   },
 
   async clearAllData(): Promise<void> {
+    log.api.warn('clearAllData — removing all data from localStorage');
     localStorage.removeItem(STORE_KEY);
   },
 };

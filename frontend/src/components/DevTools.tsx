@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import log from '../utils/logger';
 
 interface DevToolsProps {
   onSeedData: () => Promise<void>;
@@ -20,7 +21,7 @@ const DevTools: React.FC<DevToolsProps> = ({ onSeedData, onClearData }) => {
     if (!confirm('This will clear existing data and create mock data. Continue?')) {
       return;
     }
-
+    log.dev.info('Seed mock data confirmed');
     setIsLoading(true);
     try {
       await onSeedData();
@@ -33,7 +34,7 @@ const DevTools: React.FC<DevToolsProps> = ({ onSeedData, onClearData }) => {
     if (!confirm('This will delete ALL data. Are you sure?')) {
       return;
     }
-
+    log.dev.warn('Clear all data confirmed');
     setIsLoading(true);
     try {
       await onClearData();

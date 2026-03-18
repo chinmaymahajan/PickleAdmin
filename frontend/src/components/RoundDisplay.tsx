@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Round, Assignment, Court, Player } from '../types';
+import log from '../utils/logger';
 
 interface RoundDisplayProps {
   round: Round | null;
@@ -74,6 +75,10 @@ const RoundDisplay: React.FC<RoundDisplayProps> = ({
   playerLocationMap.forEach((locations, pid) => {
     if (locations.length > 1) duplicatePlayerIds.add(pid);
   });
+
+  if (duplicatePlayerIds.size > 0) {
+    log.display.warn('Conflict detected —', duplicatePlayerIds.size, 'player(s) assigned to multiple courts');
+  }
 
   // Per-court warnings
   const courtWarnings = new Map<string, string[]>();

@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import * as XLSX from 'xlsx';
 import { Player } from '../types';
+import log from '../utils/logger';
 
 interface PlayerManagerProps {
   leagueId: string;
@@ -42,6 +43,7 @@ const PlayerManager: React.FC<PlayerManagerProps> = ({
     setError(null);
     if (!playerName.trim()) { setError('Player name cannot be empty'); return; }
     if (players.length >= 100) { setError('Maximum of 100 players per session reached'); return; }
+    log.player.info('Add player —', playerName.trim());
     setIsSubmitting(true);
     shouldRefocus.current = true;
     try {
@@ -55,6 +57,7 @@ const PlayerManager: React.FC<PlayerManagerProps> = ({
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    log.player.info('File selected for import —', file.name, file.size, 'bytes');
     setError(null);
 
     const reader = new FileReader();
@@ -73,6 +76,7 @@ const PlayerManager: React.FC<PlayerManagerProps> = ({
           keys.find(k => /^name$/i.test(k.trim()));
 
         if (!nameKey) {
+          log.player.warn('Import — no "Player Name" column found in file. Keys:', keys);
           setError('Could not find a "Player Name" column in the file');
           return;
         }
@@ -102,6 +106,7 @@ const PlayerManager: React.FC<PlayerManagerProps> = ({
 
         setImportNames(toImport);
         setShowImportPreview(true);
+        log.player.info('Import preview —', toImport.length, 'new players ready to import');
       } catch {
         setError('Failed to read file. Please use .xlsx or .csv format.');
       }
@@ -112,6 +117,7 @@ const PlayerManager: React.FC<PlayerManagerProps> = ({
   };
 
   const handleImportConfirm = async () => {
+    log.player.info('Import confirmed —', importNames.length, 'players');
     setShowImportPreview(false);
     if (onImportPlayers) {
       setImportProgress({ done: 0, total: importNames.length });

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import log from '../utils/logger';
 
 interface RoundGeneratorProps {
   leagueId: string;
@@ -25,6 +26,7 @@ const RoundGenerator: React.FC<RoundGeneratorProps> = ({
   const handleGenerate = async () => {
     setError(null);
     setIsGenerating(true);
+    log.round.info('Generate round clicked — current count:', currentRoundCount);
 
     try {
       await onGenerateRound();

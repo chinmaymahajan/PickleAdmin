@@ -33,6 +33,8 @@ jobs:
       - name: Build
         run: npx vite build
         working-directory: frontend
+        env:
+          VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
