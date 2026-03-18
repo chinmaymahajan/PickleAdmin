@@ -1023,13 +1023,6 @@ function App() {
         >
           {darkMode ? '☀️' : '🌙'}
         </button>
-        {/* TODO: Remove after Sentry confirms first error */}
-        <button
-          style={{ marginLeft: 8, fontSize: 12, padding: '4px 8px', background: '#e74c3c', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer' }}
-          onClick={() => { throw new Error('Sentry test error!'); }}
-        >
-          🐛 Test Sentry
-        </button>
       </header>
 
       {selectedLeague && (
