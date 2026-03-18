@@ -136,25 +136,23 @@ describe('Round Generation & Display Integration Tests', () => {
     const startBtn = screen.getByText('Start Session →');
     expect(startBtn).not.toBeDisabled();
 
-    // Click "Start Session →" to go to Rounds tab
-    fireEvent.click(startBtn);
-
-    // Now we should be on the Rounds tab with the RoundGenerator
-    await waitFor(() => {
-      expect(screen.getByText(/START ROUND 1/)).toBeInTheDocument();
-    });
-
-    // Mock the generateRound API call
+    // Mock the generateRound API call before clicking Start Session
+    // (in manual mode, Start Session generates Round 1 immediately)
     mockedApi.generateRound.mockResolvedValue(round1);
     mockedApi.getAssignments.mockResolvedValue(assignmentsR1);
     mockedApi.getByeCounts.mockResolvedValue({});
 
-    // Click the generate round button
-    fireEvent.click(screen.getByText(/START ROUND 1/));
+    // Click "Start Session →" — generates Round 1 and switches to Rounds tab
+    fireEvent.click(startBtn);
 
     // Wait for the round to be generated and assignments displayed
     await waitFor(() => {
       expect(mockedApi.generateRound).toHaveBeenCalledWith('league-1');
+    });
+
+    // The "Start Round" hero button should appear (round generated but not started)
+    await waitFor(() => {
+      expect(screen.getByText(/START ROUND 1/)).toBeInTheDocument();
     });
 
     // The Rounds tab should now show Round 1 heading

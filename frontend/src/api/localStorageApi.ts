@@ -359,6 +359,9 @@ export const api = {
   async generateRound(leagueId: string): Promise<Round> {
     const store = loadStore();
     const existingRounds = store.rounds.filter(r => r.leagueId === leagueId);
+    if (existingRounds.length >= 50) {
+      throw new Error('Maximum of 50 rounds per session');
+    }
     log.api.info('generateRound — league', leagueId, `(existing: ${existingRounds.length} rounds)`);
     const { round, newAssignments } = generateRoundForLeague(store, leagueId);
     store.rounds.push(round);

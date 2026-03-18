@@ -1706,6 +1706,30 @@ li:last-child {
   box-shadow: none;
 }
 
+.generate-button-compact {
+  padding: 0.5rem 1rem;
+  font-size: 0.85rem;
+  font-family: inherit;
+  font-weight: 700;
+  background: #059669;
+  color: white;
+  border: none;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+
+.generate-button-compact:hover:not(:disabled) {
+  background: #047857;
+}
+
+.generate-button-compact:disabled {
+  background: var(--border);
+  color: var(--text-muted);
+  cursor: not-allowed;
+}
+
 /* ============================================
    Player Grid
    ============================================ */

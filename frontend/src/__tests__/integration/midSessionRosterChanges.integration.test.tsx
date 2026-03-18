@@ -151,6 +151,66 @@ async function navigateToSetupTab() {
   });
 }
 
+/**
+ * Helper: In manual mode, mock generateRound, click "Start Session →",
+ * then click "▶ START ROUND 1" to start the timer.
+ */
+async function startManualSession() {
+  const round1 = makeRound(1);
+  mockedApi.generateRound.mockResolvedValueOnce(round1);
+  mockedApi.getAssignments.mockResolvedValue(makeAssignments('r1'));
+  mockedApi.getByeCounts.mockResolvedValue({});
+
+  fireEvent.click(screen.getByText('Start Session →'));
+
+  // Wait for Round 1 to be generated and the start button to appear
+  await waitFor(() => {
+    expect(screen.getByText(/START ROUND 1/)).toBeInTheDocument();
+  });
+
+  // Start Round 1 (kicks off the timer)
+  await act(async () => {
+    fireEvent.click(screen.getByText(/START ROUND 1/));
+  });
+
+  await waitFor(() => {
+    expect(screen.getByRole('heading', { name: 'Round 1' })).toBeInTheDocument();
+  });
+}
+
+/**
+ * Helper: Generate the next round via the compact "Next Round" toolbar button,
+ * then click the "▶ START ROUND N" hero button.
+ */
+async function generateAndStartNextRound(
+  roundNum: number,
+  assignments: Assignment[],
+) {
+  const round = makeRound(roundNum);
+  mockedApi.generateRound.mockResolvedValueOnce(round);
+  mockedApi.getAssignments.mockResolvedValue(assignments);
+  mockedApi.getByeCounts.mockResolvedValue({});
+
+  // Click the compact "Next Round" button in the toolbar
+  await act(async () => {
+    fireEvent.click(screen.getByText(/Next Round/));
+  });
+
+  // Wait for the start button to appear
+  await waitFor(() => {
+    expect(screen.getByText(new RegExp(`START ROUND ${roundNum}`))).toBeInTheDocument();
+  });
+
+  // Start the round
+  await act(async () => {
+    fireEvent.click(screen.getByText(new RegExp(`START ROUND ${roundNum}`)));
+  });
+
+  await waitFor(() => {
+    expect(screen.getByRole('heading', { name: `Round ${roundNum}` })).toBeInTheDocument();
+  });
+}
+
 describe('Mid-Session Roster Changes', () => {
   beforeEach(() => {
     jest.useFakeTimers();
@@ -207,32 +267,12 @@ describe('Mid-Session Roster Changes', () => {
     it('should include the newly added player when generating the next round', async () => {
       await renderInManualMode();
 
-      // Wait for Setup tab
       await waitFor(() => {
         expect(screen.getByRole('heading', { name: 'Players' })).toBeInTheDocument();
       });
 
-      // Start session (manual mode) — go to Rounds tab
-      const startBtn = screen.getByText('Start Session →');
-      fireEvent.click(startBtn);
-
-      await waitFor(() => {
-        expect(screen.getByText(/START ROUND 1/)).toBeInTheDocument();
-      });
-
-      // Generate Round 1
-      const round1 = makeRound(1);
-      mockedApi.generateRound.mockResolvedValueOnce(round1);
-      mockedApi.getAssignments.mockResolvedValue(makeAssignments('r1'));
-      mockedApi.getByeCounts.mockResolvedValue({});
-
-      await act(async () => {
-        fireEvent.click(screen.getByText(/START ROUND 1/));
-      });
-
-      await waitFor(() => {
-        expect(screen.getByRole('heading', { name: 'Round 1' })).toBeInTheDocument();
-      });
+      // Start session and Round 1
+      await startManualSession();
 
       // Switch to Setup tab to add a player
       await navigateToSetupTab();
@@ -254,36 +294,16 @@ describe('Mid-Session Roster Changes', () => {
       // In manual mode, regenerateFutureRounds should NOT be called
       expect(mockedApi.regenerateFutureRounds).not.toHaveBeenCalled();
 
-      // Switch to Rounds tab and generate next round
+      // Switch to Rounds tab and generate + start next round
       const roundsTab = screen.getAllByRole('button').find(
         btn => btn.textContent === 'Rounds' && btn.classList.contains('tab-btn')
       );
       fireEvent.click(roundsTab!);
 
-      await waitFor(() => {
-        expect(screen.getByText(/START ROUND 2/)).toBeInTheDocument();
-      });
-
-      // Mock Round 2 with the new player included in assignments
-      const round2 = makeRound(2);
       const round2Assignments = makeAssignments('r2', ['p5', 'p2', 'p3', 'p4']);
-      mockedApi.generateRound.mockResolvedValueOnce(round2);
-      mockedApi.getAssignments.mockResolvedValue(round2Assignments);
-      mockedApi.getByeCounts.mockResolvedValue({});
+      await generateAndStartNextRound(2, round2Assignments);
 
-      await act(async () => {
-        fireEvent.click(screen.getByText(/START ROUND 2/));
-      });
-
-      await waitFor(() => {
-        expect(mockedApi.generateRound).toHaveBeenCalledTimes(2);
-      });
-
-      await waitFor(() => {
-        expect(screen.getByRole('heading', { name: 'Round 2' })).toBeInTheDocument();
-      });
-
-      // Verify the API was called to generate the round (the backend uses current roster)
+      expect(mockedApi.generateRound).toHaveBeenCalledTimes(2);
       expect(mockedApi.generateRound).toHaveBeenLastCalledWith('league-1');
     });
   });
@@ -298,26 +318,8 @@ describe('Mid-Session Roster Changes', () => {
         expect(screen.getByRole('heading', { name: 'Players' })).toBeInTheDocument();
       });
 
-      // Start session
-      fireEvent.click(screen.getByText('Start Session →'));
-
-      await waitFor(() => {
-        expect(screen.getByText(/START ROUND 1/)).toBeInTheDocument();
-      });
-
-      // Generate Round 1
-      const round1 = makeRound(1);
-      mockedApi.generateRound.mockResolvedValueOnce(round1);
-      mockedApi.getAssignments.mockResolvedValue(makeAssignments('r1'));
-      mockedApi.getByeCounts.mockResolvedValue({});
-
-      await act(async () => {
-        fireEvent.click(screen.getByText(/START ROUND 1/));
-      });
-
-      await waitFor(() => {
-        expect(screen.getByRole('heading', { name: 'Round 1' })).toBeInTheDocument();
-      });
+      // Start session and Round 1
+      await startManualSession();
 
       // Switch to Setup tab to remove a player
       await navigateToSetupTab();
@@ -336,18 +338,12 @@ describe('Mid-Session Roster Changes', () => {
       // In manual mode, regenerateFutureRounds should NOT be called
       expect(mockedApi.regenerateFutureRounds).not.toHaveBeenCalled();
 
-      // Switch to Rounds tab and generate next round
+      // Switch to Rounds tab and generate + start next round
       const roundsTab = screen.getAllByRole('button').find(
         btn => btn.textContent === 'Rounds' && btn.classList.contains('tab-btn')
       );
       fireEvent.click(roundsTab!);
 
-      await waitFor(() => {
-        expect(screen.getByText(/START ROUND 2/)).toBeInTheDocument();
-      });
-
-      // Mock Round 2 — assignments should NOT include the deleted player (p1)
-      const round2 = makeRound(2);
       const round2Assignments: Assignment[] = [{
         id: 'a-r2',
         roundId: 'r2',
@@ -356,23 +352,9 @@ describe('Mid-Session Roster Changes', () => {
         team2PlayerIds: ['p4'],
         createdAt: new Date(),
       }];
-      mockedApi.generateRound.mockResolvedValueOnce(round2);
-      mockedApi.getAssignments.mockResolvedValue(round2Assignments);
-      mockedApi.getByeCounts.mockResolvedValue({});
+      await generateAndStartNextRound(2, round2Assignments);
 
-      await act(async () => {
-        fireEvent.click(screen.getByText(/START ROUND 2/));
-      });
-
-      await waitFor(() => {
-        expect(mockedApi.generateRound).toHaveBeenCalledTimes(2);
-      });
-
-      await waitFor(() => {
-        expect(screen.getByRole('heading', { name: 'Round 2' })).toBeInTheDocument();
-      });
-
-      // The generate call goes to the backend which uses the current roster (without p1)
+      expect(mockedApi.generateRound).toHaveBeenCalledTimes(2);
       expect(mockedApi.generateRound).toHaveBeenLastCalledWith('league-1');
     });
   });
@@ -387,20 +369,8 @@ describe('Mid-Session Roster Changes', () => {
         expect(screen.getByRole('heading', { name: 'Players' })).toBeInTheDocument();
       });
 
-      // Start session
-      fireEvent.click(screen.getByText('Start Session →'));
-      await waitFor(() => { expect(screen.getByText(/START ROUND 1/)).toBeInTheDocument(); });
-
-      // ── Step 1: Generate Round 1 with original 4 players ──
-      const round1 = makeRound(1);
-      mockedApi.generateRound.mockResolvedValueOnce(round1);
-      mockedApi.getAssignments.mockResolvedValue(makeAssignments('r1'));
-      mockedApi.getByeCounts.mockResolvedValue({});
-
-      await act(async () => {
-        fireEvent.click(screen.getByText(/START ROUND 1/));
-      });
-      await waitFor(() => { expect(screen.getByRole('heading', { name: 'Round 1' })).toBeInTheDocument(); });
+      // Start session and Round 1
+      await startManualSession();
 
       // ── Step 2: Add a new player (Eve) ──
       await navigateToSetupTab();
@@ -422,19 +392,9 @@ describe('Mid-Session Roster Changes', () => {
         btn => btn.textContent === 'Rounds' && btn.classList.contains('tab-btn')
       );
       fireEvent.click(roundsTab!);
-      await waitFor(() => { expect(screen.getByText(/START ROUND 2/)).toBeInTheDocument(); });
 
-      const round2 = makeRound(2);
-      // Round 2 assignments include the new player p5
       const round2Assignments = makeAssignments('r2', ['p5', 'p2', 'p3', 'p4']);
-      mockedApi.generateRound.mockResolvedValueOnce(round2);
-      mockedApi.getAssignments.mockResolvedValue(round2Assignments);
-      mockedApi.getByeCounts.mockResolvedValue({});
-
-      await act(async () => {
-        fireEvent.click(screen.getByText(/START ROUND 2/));
-      });
-      await waitFor(() => { expect(screen.getByRole('heading', { name: 'Round 2' })).toBeInTheDocument(); });
+      await generateAndStartNextRound(2, round2Assignments);
       expect(mockedApi.generateRound).toHaveBeenCalledTimes(2);
 
       // ── Step 4: Delete a player (Bob, p2) ──
@@ -442,7 +402,6 @@ describe('Mid-Session Roster Changes', () => {
 
       mockedApi.deletePlayer.mockResolvedValue(undefined);
 
-      // Remove Bob
       await act(async () => {
         fireEvent.click(screen.getByRole('button', { name: 'Remove Bob' }));
       });
@@ -451,23 +410,12 @@ describe('Mid-Session Roster Changes', () => {
 
       // ── Step 5: Generate Round 3 — should use roster without Bob ──
       fireEvent.click(roundsTab!);
-      await waitFor(() => { expect(screen.getByText(/START ROUND 3/)).toBeInTheDocument(); });
 
-      const round3 = makeRound(3);
-      // Round 3 assignments: p1, p5, p3, p4 (no p2)
       const round3Assignments = makeAssignments('r3', ['p1', 'p5', 'p3', 'p4']);
-      mockedApi.generateRound.mockResolvedValueOnce(round3);
-      mockedApi.getAssignments.mockResolvedValue(round3Assignments);
-      mockedApi.getByeCounts.mockResolvedValue({});
-
-      await act(async () => {
-        fireEvent.click(screen.getByText(/START ROUND 3/));
-      });
-      await waitFor(() => { expect(screen.getByRole('heading', { name: 'Round 3' })).toBeInTheDocument(); });
+      await generateAndStartNextRound(3, round3Assignments);
       expect(mockedApi.generateRound).toHaveBeenCalledTimes(3);
 
-      // All 3 rounds generated successfully with roster changes between them
-      // Manual mode never calls regenerateFutureRounds — it relies on next generateRound
+      // Manual mode never calls regenerateFutureRounds
       expect(mockedApi.regenerateFutureRounds).not.toHaveBeenCalled();
     });
   });

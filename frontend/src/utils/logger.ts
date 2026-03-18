@@ -34,17 +34,20 @@ function shouldLog(level: LogLevel): boolean {
 
 function createLogger(category: string) {
   const prefix = `[${category}]`;
+  const attrs = { log_source: category.toLowerCase() };
 
   return {
     debug: (...args: unknown[]) => {
       if (shouldLog('debug')) console.debug(prefix, ...args);
+      Sentry.logger.debug(`${prefix} ${args.map(String).join(' ')}`, attrs);
     },
     info: (...args: unknown[]) => {
       if (shouldLog('info')) console.log(prefix, ...args);
+      Sentry.logger.info(`${prefix} ${args.map(String).join(' ')}`, attrs);
     },
     warn: (...args: unknown[]) => {
       if (shouldLog('warn')) console.warn(prefix, ...args);
-      // Forward warnings to Sentry as breadcrumbs
+      Sentry.logger.warn(`${prefix} ${args.map(String).join(' ')}`, attrs);
       Sentry.addBreadcrumb({
         category,
         message: args.map(String).join(' '),
@@ -53,7 +56,8 @@ function createLogger(category: string) {
     },
     error: (...args: unknown[]) => {
       if (shouldLog('error')) console.error(prefix, ...args);
-      // Capture errors in Sentry
+      Sentry.logger.error(`${prefix} ${args.map(String).join(' ')}`, attrs);
+      // Also capture errors as Sentry events for alerting
       const errorArg = args.find(a => a instanceof Error);
       if (errorArg instanceof Error) {
         Sentry.captureException(errorArg, {

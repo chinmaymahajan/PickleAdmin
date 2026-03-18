@@ -62,6 +62,7 @@ function App() {
   const [timeRemaining, setTimeRemaining] = useState<number>(0);
   const [isOnBreak, setIsOnBreak] = useState(false);
   const [timerHidden, setTimerHidden] = useState(false);
+  const [startedRounds, setStartedRounds] = useState<Set<number>>(new Set());
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const sessionModeRef = useRef(sessionMode);
   const [darkMode, setDarkMode] = useState(() => {
@@ -665,6 +666,7 @@ function App() {
       setNextRound(null);
       setNextAssignments([]);
       setByeCounts({});
+      setStartedRounds(new Set());
       // Don't clear timerEndTime for manual mode — it's persisted in localStorage
       // and will be restored (with buzzer) when the user returns.
       setTimerEndTime(null);
@@ -730,6 +732,7 @@ function App() {
         setAssignments([]);
         setTimerEndTime(null);
         setIsOnBreak(false);
+        setStartedRounds(new Set());
       }
       setSuccessMessage('Session deleted');
     } catch (err: any) {
@@ -837,6 +840,10 @@ function App() {
 
   const handleGenerateRound = async () => {
     if (!selectedLeagueId) return;
+    if (rounds.length >= 50) {
+      setError('Maximum of 50 rounds per session');
+      return;
+    }
     log.round.info('handleGenerateRound — generating round', rounds.length + 1);
     setError(null);
     setSuccessMessage(null);
@@ -850,14 +857,22 @@ function App() {
       setRounds(newRounds);
       setCurrentRound(round);
       setActiveTab('rounds');
-      startTimer();
-      log.round.info(`Round ${round.roundNumber} in progress out of ${newRounds.length} total`);
+      log.round.info(`Round ${round.roundNumber} generated — ${newRounds.length} total, awaiting start`);
       setSuccessMessage(`Round ${round.roundNumber} generated`);
     } catch (err: any) {
       log.round.error('Failed to generate round', err);
       setError(err.message || 'Failed to generate round');
       throw err;
     } finally { setLoading(false); }
+  };
+
+  const handleStartCurrentRound = () => {
+    if (!currentRound) return;
+    log.round.info('handleStartCurrentRound — starting round', currentRound.roundNumber);
+    suppressBuzzerFor(10000);
+    startTimer();
+    setStartedRounds(prev => new Set(prev).add(currentRound.roundNumber));
+    setSuccessMessage(`Round ${currentRound.roundNumber} started`);
   };
 
   const handleStartAutoSession = async () => {
@@ -965,6 +980,7 @@ function App() {
       setTimerEndTime(null);
       setIsOnBreak(false);
       setPendingModeSwitch(null);
+      setStartedRounds(new Set());
       setSuccessMessage('All data cleared');
     } catch (err: any) {
       log.app.error('Failed to clear data', err);
@@ -999,6 +1015,7 @@ function App() {
       setByeCounts({});
       setTimerEndTime(null);
       setIsOnBreak(false);
+      setStartedRounds(new Set());
       setSessionMode(pendingModeSwitch);
       setPendingModeSwitch(null);
       setActiveTab('setup');
@@ -1281,7 +1298,10 @@ function App() {
                   <button
                     className="start-session-btn"
                     disabled={players.length < 4 || courts.length < 1}
-                    onClick={sessionMode === 'auto' && rounds.length === 0 ? handleStartAutoSession : () => setActiveTab('rounds')}
+                    onClick={rounds.length === 0
+                      ? (sessionMode === 'auto' ? handleStartAutoSession : handleGenerateRound)
+                      : () => setActiveTab('rounds')
+                    }
                   >
                     {rounds.length > 0 ? 'Go to Rounds →' : 'Start Session →'}
                   </button>
@@ -1298,6 +1318,7 @@ function App() {
                           setTimerEndTime(null);
                           setIsOnBreak(false);
                           setTimerHidden(false);
+                          setStartedRounds(new Set());
                           lastHandledTimerRef.current = null;
                           clearSessionState(selectedLeagueId);
                           setSuccessMessage('Session reset — players and courts kept');
@@ -1317,11 +1338,12 @@ function App() {
 
             {activeTab === 'rounds' && (
               <section className="rounds-section">
-                {sessionMode === 'manual' && (
+                {sessionMode === 'manual' && rounds.length === 0 && (
                   <RoundGenerator
                     leagueId={selectedLeagueId}
                     onGenerateRound={handleGenerateRound}
                     currentRoundCount={rounds.length}
+                    roundStarted={false}
                   />
                 )}
 
@@ -1361,10 +1383,31 @@ function App() {
                         onNavigate={handleNavigateToRound}
                         liveRound={sessionMode === 'auto' && autoActiveRound ? autoActiveRound.roundNumber : undefined}
                       />
+                      {sessionMode === 'manual' && rounds.length < 50 && (
+                        <RoundGenerator
+                          leagueId={selectedLeagueId}
+                          onGenerateRound={handleGenerateRound}
+                          currentRoundCount={rounds.length}
+                          roundStarted={true}
+                          compact
+                        />
+                      )}
                       <button className="tv-mode-btn" onClick={() => setTvMode(true)}>
                         📺 TV Mode
                       </button>
                     </div>
+
+                    {sessionMode === 'manual' && !startedRounds.has(currentRound.roundNumber) && (
+                      <RoundGenerator
+                        leagueId={selectedLeagueId}
+                        onGenerateRound={handleGenerateRound}
+                        onStartRound={handleStartCurrentRound}
+                        currentRoundCount={rounds.length}
+                        viewingRoundNumber={currentRound.roundNumber}
+                        roundStarted={false}
+                      />
+                    )}
+
                     <RoundDisplay
                       round={currentRound}
                       assignments={assignments}
