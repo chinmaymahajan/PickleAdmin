@@ -174,7 +174,7 @@ function App() {
     if (sessionMode === 'auto' && !autoActiveRound && isOnBreak) {
       const firstRound = rounds[0];
       setNextRound(firstRound);
-      api.getAssignments(firstRound.id).then(setNextAssignments).catch(() => setNextAssignments([]));
+      api.getAssignments(firstRound.id).then(setNextAssignments).catch((err) => { log.app.warn('Failed to prefetch assignments', err); setNextAssignments([]); });
       return;
     }
 
@@ -190,7 +190,7 @@ function App() {
       : null;
     setNextRound(upcoming);
     if (upcoming) {
-      api.getAssignments(upcoming.id).then(setNextAssignments).catch(() => setNextAssignments([]));
+      api.getAssignments(upcoming.id).then(setNextAssignments).catch((err) => { log.app.warn('Failed to prefetch assignments', err); setNextAssignments([]); });
     } else {
       setNextAssignments([]);
     }
@@ -207,7 +207,7 @@ function App() {
       setAutoActiveAssignments([]);
       return;
     }
-    api.getAssignments(autoActiveRound.id).then(setAutoActiveAssignments).catch(() => setAutoActiveAssignments([]));
+    api.getAssignments(autoActiveRound.id).then(setAutoActiveAssignments).catch((err) => { log.app.warn('Failed to prefetch auto-active assignments', err); setAutoActiveAssignments([]); });
   }, [autoActiveRound, currentRound, sessionMode]);
 
   useEffect(() => {
@@ -572,12 +572,18 @@ function App() {
             const endTime = Number(savedEnd);
             const remaining = endTime - Date.now();
             if (remaining > 0) {
+              // Timer still running — restore it and allow buzzer to fire
+              manualBuzzerFiredRef.current = false;
+              timerStartedAtRef.current = endTime - roundDurationMinutes * 60 * 1000;
               setTimerEndTime(endTime);
               setTimeRemaining(remaining);
             } else {
-              // Timer already expired — show expired state
-              setTimerEndTime(endTime);
+              // Timer expired while away — fire the buzzer now, then clear
+              localStorage.removeItem(`manualTimerEndTime_${leagueId}`);
+              setTimerEndTime(null);
               setTimeRemaining(0);
+              log.timer.info('Manual timer expired while away — buzzer fired on restore');
+              playBuzzer();
             }
           } else {
             setTimerEndTime(null);
@@ -630,6 +636,11 @@ function App() {
     setSuccessMessage(null);
     setTvMode(false);
 
+    // Stop the interval tick (it will be re-created when timerEndTime is restored).
+    // We do NOT suppress the buzzer here — the timer should survive navigation
+    // and fire the buzzer when the user returns.
+    if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
+
     // Save current league's session state before switching
     if (selectedLeagueId) {
       log.app.debug('Saving session state for league', selectedLeagueId, 'before switch');
@@ -654,6 +665,8 @@ function App() {
       setNextRound(null);
       setNextAssignments([]);
       setByeCounts({});
+      // Don't clear timerEndTime for manual mode — it's persisted in localStorage
+      // and will be restored (with buzzer) when the user returns.
       setTimerEndTime(null);
       setIsOnBreak(false);
       setPendingModeSwitch(null);
@@ -672,7 +685,10 @@ function App() {
     try {
       await api.selectLeague(leagueId);
       setSelectedLeagueId(leagueId);
-    } catch (err: any) { setError(err.message || 'Failed to select league'); }
+    } catch (err: any) {
+      log.app.error('Failed to select league', err);
+      setError(err.message || 'Failed to select league');
+    }
   };
 
   const handleCreateLeague = async (name: string, format: LeagueFormat) => {
@@ -687,6 +703,7 @@ function App() {
       setActiveTab('setup');
       setSelectedLeagueId(league.id);
     } catch (err: any) {
+      log.app.error('Failed to create league', err);
       setError(err.message || 'Failed to create league');
       throw err;
     }
@@ -701,6 +718,9 @@ function App() {
       clearSessionState(leagueId);
       setLeagues(leagues.filter(l => l.id !== leagueId));
       if (selectedLeagueId === leagueId) {
+        // Stop any running timer immediately so the buzzer cannot fire after deletion
+        if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
+        manualBuzzerFiredRef.current = true;
         setSelectedLeagueId(null);
         setPlayers([]);
         setCourts([]);
@@ -713,6 +733,7 @@ function App() {
       }
       setSuccessMessage('Session deleted');
     } catch (err: any) {
+      log.app.error('Failed to delete session', err);
       setError(err.message || 'Failed to delete session');
       throw err;
     }
@@ -729,6 +750,7 @@ function App() {
       setRounds(updatedRounds);
       setSuccessMessage('Future rounds regenerated with updated roster');
     } catch (err: any) {
+      log.app.error('Failed to regenerate future rounds', err);
       setError(err.message || 'Failed to regenerate future rounds');
     }
   };
@@ -744,6 +766,7 @@ function App() {
       setSuccessMessage(`${name} added`);
       await regenerateIfAutoSession();
     } catch (err: any) {
+      log.player.error('Failed to add player', err);
       setError(err.message || 'Failed to add player');
       throw err;
     }
@@ -778,6 +801,7 @@ function App() {
       setSuccessMessage(`${identifier} added`);
       await regenerateIfAutoSession();
     } catch (err: any) {
+      log.court.error('Failed to add court', err);
       setError(err.message || 'Failed to add court');
       throw err;
     }
@@ -791,7 +815,10 @@ function App() {
       setPlayers(players.filter(p => p.id !== playerId));
       setSuccessMessage('Player removed');
       await regenerateIfAutoSession();
-    } catch (err: any) { setError(err.message || 'Failed to remove player'); }
+    } catch (err: any) {
+      log.player.error('Failed to remove player', err);
+      setError(err.message || 'Failed to remove player');
+    }
   };
 
   const handleRemoveCourt = async (courtId: string) => {
@@ -802,7 +829,10 @@ function App() {
       setCourts(courts.filter(c => c.id !== courtId));
       setSuccessMessage('Court removed');
       await regenerateIfAutoSession();
-    } catch (err: any) { setError(err.message || 'Failed to remove court'); }
+    } catch (err: any) {
+      log.court.error('Failed to remove court', err);
+      setError(err.message || 'Failed to remove court');
+    }
   };
 
   const handleGenerateRound = async () => {
@@ -824,6 +854,7 @@ function App() {
       log.round.info(`Round ${round.roundNumber} in progress out of ${newRounds.length} total`);
       setSuccessMessage(`Round ${round.roundNumber} generated`);
     } catch (err: any) {
+      log.round.error('Failed to generate round', err);
       setError(err.message || 'Failed to generate round');
       throw err;
     } finally { setLoading(false); }
@@ -867,6 +898,7 @@ function App() {
       setSuccessMessage(`${totalRoundsPlanned} rounds generated — session starting`);
       log.round.info(`Auto session started — Round 1 in progress out of ${totalRoundsPlanned}`);
     } catch (err: any) {
+      log.round.error('Failed to start auto session', err);
       setError(err.message || 'Failed to start auto session');
     } finally { setLoading(false); }
   };
@@ -892,6 +924,7 @@ function App() {
       setAssignments(updatedAssignments);
       setSuccessMessage('Assignments saved');
     } catch (err: any) {
+      log.app.error('Failed to update assignments', err);
       setError(err.message || 'Failed to update assignments');
       throw err;
     } finally { setLoading(false); }
@@ -913,6 +946,9 @@ function App() {
 
   const handleClearAllData = async () => {
     log.dev.warn('handleClearAllData — clearing all data');
+    // Stop any running timer immediately so the buzzer cannot fire after data is gone
+    if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
+    manualBuzzerFiredRef.current = true;
     setError(null);
     setSuccessMessage(null);
     setLoading(true);
@@ -926,10 +962,14 @@ function App() {
       setCurrentRound(null);
       setAutoActiveRound(null);
       setAssignments([]);
+      setTimerEndTime(null);
+      setIsOnBreak(false);
       setPendingModeSwitch(null);
       setSuccessMessage('All data cleared');
-    } catch (err: any) { setError(err.message || 'Failed to clear data'); }
-    finally { setLoading(false); }
+    } catch (err: any) {
+      log.app.error('Failed to clear data', err);
+      setError(err.message || 'Failed to clear data');
+    } finally { setLoading(false); }
   };
 
   const formatLabel = (f: string) => f === 'round_robin' ? 'Round Robin' : f;
@@ -965,6 +1005,7 @@ function App() {
       lastHandledTimerRef.current = null;
       setSuccessMessage(`Switched to ${pendingModeSwitch} mode — session reset`);
     } catch (err: any) {
+      log.app.error('Failed to switch mode', err);
       setError(err.message || 'Failed to switch mode');
     }
   };
@@ -981,6 +1022,13 @@ function App() {
           aria-label={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
         >
           {darkMode ? '☀️' : '🌙'}
+        </button>
+        {/* TODO: Remove after Sentry confirms first error */}
+        <button
+          style={{ marginLeft: 8, fontSize: 12, padding: '4px 8px', background: '#e74c3c', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer' }}
+          onClick={() => { throw new Error('Sentry test error!'); }}
+        >
+          🐛 Test Sentry
         </button>
       </header>
 
@@ -1261,6 +1309,7 @@ function App() {
                           clearSessionState(selectedLeagueId);
                           setSuccessMessage('Session reset — players and courts kept');
                         } catch (err: any) {
+                          log.app.error('Failed to reset session', err);
                           setError(err.message || 'Failed to reset session');
                         }
                       }}

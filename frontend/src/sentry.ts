@@ -36,6 +36,11 @@ Sentry.init({
 
   // Only send events in production (flip to true to test locally)
   enabled: import.meta.env.PROD,
+
+  // Enable the Sentry.logger API (structured logs)
+  _experiments: {
+    enableLogs: true,
+  },
 });
 
 export default Sentry;

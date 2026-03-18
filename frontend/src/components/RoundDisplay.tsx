@@ -1,5 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Round, Assignment, Court, Player } from '../types';
+import { DragData, DropTarget } from './dragTypes';
+import DraggablePlayerSlot from './DraggablePlayerSlot';
+import DraggableBenchPlayer from './DraggableBenchPlayer';
 import log from '../utils/logger';
 
 interface RoundDisplayProps {
@@ -35,11 +38,35 @@ const RoundDisplay: React.FC<RoundDisplayProps> = ({
   const [editedAssignments, setEditedAssignments] = useState<Assignment[]>([]);
   const [isSaving, setIsSaving] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [dragData, setDragData] = useState<DragData | null>(null);
+  const [dropTarget, setDropTarget] = useState<DropTarget | null>(null);
 
   useEffect(() => {
     setEditedAssignments(JSON.parse(JSON.stringify(assignments)));
     setHasUnsavedChanges(false);
   }, [assignments]);
+
+  const handleDragStart = useCallback((data: DragData) => {
+    setDragData(data);
+  }, []);
+
+  const handleDragOverSlot = useCallback((assignmentId: string, team: 'team1' | 'team2', index: number) => {
+    setDropTarget(prev => {
+      if (prev && prev.assignmentId === assignmentId && prev.team === team && prev.index === index) {
+        return prev;
+      }
+      return { assignmentId, team, index };
+    });
+  }, []);
+
+  const handleDragLeave = useCallback(() => {
+    setDropTarget(null);
+  }, []);
+
+  const handleDragEnd = useCallback(() => {
+    setDragData(null);
+    setDropTarget(null);
+  }, []);
 
   if (!round) {
     return <div className="round-display"><p>No round to display</p></div>;
@@ -154,6 +181,68 @@ const RoundDisplay: React.FC<RoundDisplayProps> = ({
     setHasUnsavedChanges(true);
   };
 
+  const handleDrop = (
+    targetAssignmentId: string,
+    targetTeam: 'team1' | 'team2',
+    targetIndex: number
+  ) => {
+    if (isSaving || !dragData) return;
+
+    const targetTeamKey = targetTeam === 'team1' ? 'team1PlayerIds' : 'team2PlayerIds';
+
+    if (dragData.source.type === 'bench') {
+      // Bench → Court slot: replace target slot player with bench player
+      const newAssignments = editedAssignments.map(a => {
+        if (a.id !== targetAssignmentId) return a;
+        const newTeam = [...a[targetTeamKey]];
+        newTeam[targetIndex] = dragData.playerId;
+        return { ...a, [targetTeamKey]: newTeam };
+      });
+      setEditedAssignments(newAssignments);
+      setHasUnsavedChanges(true);
+    } else {
+      // Court → Court: swap if different slot
+      const src = dragData.source;
+      if (
+        src.assignmentId === targetAssignmentId &&
+        src.team === targetTeam &&
+        src.index === targetIndex
+      ) {
+        // Same slot — no-op
+        setDragData(null);
+        setDropTarget(null);
+        return;
+      }
+
+      const srcTeamKey = src.team === 'team1' ? 'team1PlayerIds' : 'team2PlayerIds';
+      const targetAssignment = editedAssignments.find(a => a.id === targetAssignmentId);
+      if (!targetAssignment) return;
+      const targetPlayerId = targetAssignment[targetTeamKey][targetIndex];
+
+      const newAssignments = editedAssignments.map(a => {
+        let updated = a;
+        // Place target player into source slot
+        if (a.id === src.assignmentId) {
+          const newTeam = [...a[srcTeamKey]];
+          newTeam[src.index] = targetPlayerId;
+          updated = { ...updated, [srcTeamKey]: newTeam };
+        }
+        // Place source player into target slot
+        if (updated.id === targetAssignmentId) {
+          const newTeam = [...updated[targetTeamKey]];
+          newTeam[targetIndex] = dragData.playerId;
+          updated = { ...updated, [targetTeamKey]: newTeam };
+        }
+        return updated;
+      });
+      setEditedAssignments(newAssignments);
+      setHasUnsavedChanges(true);
+    }
+
+    setDragData(null);
+    setDropTarget(null);
+  };
+
   const handleSave = async () => {
     if (!onUpdateAssignments || !hasUnsavedChanges || hasConflicts) return;
 
@@ -168,6 +257,7 @@ const RoundDisplay: React.FC<RoundDisplayProps> = ({
       setHasUnsavedChanges(false);
     } catch (err) {
       console.error('Failed to save assignments:', err);
+      log.display.error('Failed to save assignments', err);
     } finally {
       setIsSaving(false);
     }
@@ -194,8 +284,26 @@ const RoundDisplay: React.FC<RoundDisplayProps> = ({
       );
     }
 
+    const isDragOver = dropTarget !== null &&
+      dropTarget.assignmentId === assignment.id &&
+      dropTarget.team === team &&
+      dropTarget.index === index;
+
     return (
-      <li key={`${assignment.id}-${team}-${index}`} className={`player-slot ${isConflict ? 'conflict' : ''}`}>
+      <DraggablePlayerSlot
+        key={`${assignment.id}-${team}-${index}`}
+        assignment={assignment}
+        team={team}
+        playerIndex={index}
+        playerId={playerId}
+        isConflict={isConflict}
+        isDragOver={isDragOver}
+        disabled={isSaving}
+        onDragStart={handleDragStart}
+        onDrop={handleDrop}
+        onDragOverSlot={handleDragOverSlot}
+        onDragLeave={handleDragLeave}
+      >
         <PlayerTypeahead
           value={playerId}
           players={players}
@@ -204,12 +312,12 @@ const RoundDisplay: React.FC<RoundDisplayProps> = ({
           playersOnBye={playersOnBye}
           hasError={isConflict}
         />
-      </li>
+      </DraggablePlayerSlot>
     );
   };
 
   return (
-    <div className="round-display">
+    <div className="round-display" onDragEnd={handleDragEnd}>
       <h2>Round {round.roundNumber}</h2>
 
       {sortedAssignments.length === 0 ? (
@@ -284,12 +392,22 @@ const RoundDisplay: React.FC<RoundDisplayProps> = ({
             {[...playersOnBye]
               .sort((a, b) => (byeCounts[b.id] || 0) - (byeCounts[a.id] || 0))
               .map((player) => (
-              <li key={player.id}>
-                {player.name}
-                {(byeCounts[player.id] || 0) > 0 && (
-                  <span className="bye-count">({byeCounts[player.id]} {byeCounts[player.id] === 1 ? 'bye' : 'byes'})</span>
-                )}
-              </li>
+              onUpdateAssignments ? (
+                <DraggableBenchPlayer
+                  key={player.id}
+                  player={player}
+                  byeCount={byeCounts[player.id] || 0}
+                  onDragStart={handleDragStart}
+                  disabled={!onUpdateAssignments || isSaving}
+                />
+              ) : (
+                <li key={player.id}>
+                  {player.name}
+                  {(byeCounts[player.id] || 0) > 0 && (
+                    <span className="bye-count">({byeCounts[player.id]} {byeCounts[player.id] === 1 ? 'bye' : 'byes'})</span>
+                  )}
+                </li>
+              )
             ))}
           </ul>
         </div>
