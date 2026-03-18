@@ -16,8 +16,11 @@ import CourtIcon from './components/CourtIcon';
 import PickleballIcon from './components/PickleballIcon';
 import { playBuzzer, suppressBuzzerFor } from './utils/sound';
 import log from './utils/logger';
+import * as Sentry from "@sentry/react";
+
 
 function App() {
+  Sentry.logger.info('User triggered test log', { log_source: 'sentry_test' })
   const [leagues, setLeagues] = useState<League[]>([]);
   const [selectedLeagueId, setSelectedLeagueId] = useState<string | null>(() => {
     return localStorage.getItem('selectedLeagueId');
