@@ -1,6 +1,7 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import * as XLSX from 'xlsx';
 import { Player } from '../types';
+import { api } from '../api/client';
 import log from '../utils/logger';
 
 interface PlayerManagerProps {
@@ -26,6 +27,13 @@ const PlayerManager: React.FC<PlayerManagerProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const shouldRefocus = useRef(false);
 
+  // Autocomplete suggestions
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [selectedSuggestionIdx, setSelectedSuggestionIdx] = useState(-1);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const suggestionsRef = useRef<HTMLUListElement>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   // Import state
   const [importNames, setImportNames] = useState<string[]>([]);
   const [showImportPreview, setShowImportPreview] = useState(false);
@@ -48,6 +56,54 @@ const PlayerManager: React.FC<PlayerManagerProps> = ({
     }
   }, [isSubmitting]);
 
+  // Fetch autocomplete suggestions as user types
+  const fetchSuggestions = useCallback(async (query: string) => {
+    if (query.trim().length === 0) {
+      setSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+    try {
+      const excludeNames = players.map(p => p.name);
+      const results = await api.getPlayerSuggestions(query, excludeNames);
+      setSuggestions(results);
+      setShowSuggestions(results.length > 0);
+      setSelectedSuggestionIdx(-1);
+    } catch {
+      setSuggestions([]);
+      setShowSuggestions(false);
+    }
+  }, [players]);
+
+  const handleNameChange = (value: string) => {
+    setPlayerName(value);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => fetchSuggestions(value), 150);
+  };
+
+  const selectSuggestion = (name: string) => {
+    setPlayerName(name);
+    setSuggestions([]);
+    setShowSuggestions(false);
+    inputRef.current?.focus();
+  };
+
+  // Close suggestions when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (
+        suggestionsRef.current &&
+        !suggestionsRef.current.contains(e.target as Node) &&
+        inputRef.current &&
+        !inputRef.current.contains(e.target as Node)
+      ) {
+        setShowSuggestions(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -59,6 +115,8 @@ const PlayerManager: React.FC<PlayerManagerProps> = ({
     try {
       await onAddPlayer(playerName);
       setPlayerName('');
+      setSuggestions([]);
+      setShowSuggestions(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to add player');
     } finally { setIsSubmitting(false); }
@@ -144,20 +202,66 @@ const PlayerManager: React.FC<PlayerManagerProps> = ({
       <h2>Players <span className="player-count-badge">{players.length}</span></h2>
       <form onSubmit={handleSubmit}>
         <div className="input-group">
-          <input
-            ref={inputRef}
-            type="text"
-            value={playerName}
-            onChange={(e) => setPlayerName(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Tab' && !e.shiftKey && nextInputId) {
-                const next = document.getElementById(nextInputId);
-                if (next) { e.preventDefault(); next.focus(); }
-              }
-            }}
-            placeholder="Player name"
-            disabled={isSubmitting}
-          />
+          <div className="autocomplete-wrapper">
+            <input
+              ref={inputRef}
+              type="text"
+              value={playerName}
+              onChange={(e) => handleNameChange(e.target.value)}
+              onFocus={() => { if (suggestions.length > 0) setShowSuggestions(true); }}
+              onKeyDown={(e) => {
+                if (showSuggestions && suggestions.length > 0) {
+                  if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    setSelectedSuggestionIdx(prev => (prev + 1) % suggestions.length);
+                  } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    setSelectedSuggestionIdx(prev => (prev <= 0 ? suggestions.length - 1 : prev - 1));
+                  } else if (e.key === 'Enter' && selectedSuggestionIdx >= 0) {
+                    e.preventDefault();
+                    selectSuggestion(suggestions[selectedSuggestionIdx]);
+                    return;
+                  } else if (e.key === 'Escape') {
+                    setShowSuggestions(false);
+                  }
+                }
+                if (e.key === 'Tab' && !e.shiftKey && nextInputId) {
+                  const next = document.getElementById(nextInputId);
+                  if (next) { e.preventDefault(); next.focus(); }
+                }
+              }}
+              placeholder="Player name"
+              disabled={isSubmitting}
+              autoComplete="off"
+              role="combobox"
+              aria-expanded={showSuggestions}
+              aria-autocomplete="list"
+              aria-controls="player-suggestions"
+              aria-activedescendant={selectedSuggestionIdx >= 0 ? `suggestion-${selectedSuggestionIdx}` : undefined}
+            />
+            {showSuggestions && suggestions.length > 0 && (
+              <ul
+                ref={suggestionsRef}
+                className="autocomplete-suggestions"
+                id="player-suggestions"
+                role="listbox"
+                aria-label="Player name suggestions"
+              >
+                {suggestions.map((name, idx) => (
+                  <li
+                    key={name}
+                    id={`suggestion-${idx}`}
+                    role="option"
+                    aria-selected={idx === selectedSuggestionIdx}
+                    className={idx === selectedSuggestionIdx ? 'selected' : ''}
+                    onMouseDown={(e) => { e.preventDefault(); selectSuggestion(name); }}
+                  >
+                    {name}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
           <button type="submit" disabled={isSubmitting}>Add</button>
           <button
             type="button"

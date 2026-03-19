@@ -23,6 +23,32 @@ function shuffle<T>(array: T[]): T[] {
 // ── Storage helpers ──────────────────────────────────────────────────────────
 
 const STORE_KEY = 'pickleadmin_data';
+const PLAYER_DIRECTORY_KEY = 'pickleadmin_player_directory';
+const PLAYER_DIRECTORY_MAX = 5000;
+
+/** Persistent directory of all player names ever entered, for autocomplete. */
+function loadPlayerDirectory(): string[] {
+  try {
+    const raw = localStorage.getItem(PLAYER_DIRECTORY_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch { /* ignore */ }
+  return [];
+}
+
+function savePlayerDirectory(names: string[]): void {
+  localStorage.setItem(PLAYER_DIRECTORY_KEY, JSON.stringify(names));
+}
+
+function addToPlayerDirectory(name: string): void {
+  const dir = loadPlayerDirectory();
+  if (!dir.some(n => n.toLowerCase() === name.toLowerCase())) {
+    if (dir.length >= PLAYER_DIRECTORY_MAX) {
+      dir.shift(); // drop oldest entry
+    }
+    dir.push(name);
+    savePlayerDirectory(dir);
+  }
+}
 
 interface Store {
   leagues: League[];
@@ -315,11 +341,22 @@ export const api = {
     const player: Player = { id: generateId(), leagueId, name: trimmed, createdAt: new Date() };
     store.players.push(player);
     saveStore(store);
+    addToPlayerDirectory(trimmed);
     return player;
   },
 
   async getPlayers(leagueId: string): Promise<Player[]> {
     return loadStore().players.filter(p => p.leagueId === leagueId);
+  },
+
+  /** Return player names from the directory matching a prefix, excluding already-added players. */
+  async getPlayerSuggestions(query: string, excludeNames: string[]): Promise<string[]> {
+    const q = query.trim().toLowerCase();
+    if (!q) return [];
+    const excludeSet = new Set(excludeNames.map(n => n.toLowerCase()));
+    return loadPlayerDirectory()
+      .filter(n => n.toLowerCase().startsWith(q) && !excludeSet.has(n.toLowerCase()))
+      .slice(0, 8);
   },
 
   async deletePlayer(playerId: string): Promise<void> {
@@ -489,6 +526,7 @@ export const api = {
     ];
     for (const name of names) {
       store.players.push({ id: generateId(), leagueId: league.id, name, createdAt: now });
+      addToPlayerDirectory(name);
     }
     for (let i = 1; i <= 6; i++) {
       store.courts.push({ id: generateId(), leagueId: league.id, identifier: `Court ${i}`, createdAt: now });
@@ -501,5 +539,6 @@ export const api = {
   async clearAllData(): Promise<void> {
     log.api.warn('clearAllData — removing all data from localStorage');
     localStorage.removeItem(STORE_KEY);
+    localStorage.removeItem(PLAYER_DIRECTORY_KEY);
   },
 };

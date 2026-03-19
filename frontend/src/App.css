@@ -194,6 +194,7 @@ body {
   min-height: 100vh;
   background: var(--bg-body);
   transition: background 0.2s;
+  overflow-x: hidden;
 }
 
 /* ============================================
@@ -221,6 +222,18 @@ header h1 {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+}
+
+.logo-link {
+  color: inherit;
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+}
+
+.logo-link:hover {
+  opacity: 0.8;
 }
 
 .theme-toggle {
@@ -290,6 +303,8 @@ header h1 {
   font-size: 0.8125rem;
   color: var(--text-secondary);
   animation: fadeIn 0.2s ease;
+  overflow-x: hidden;
+  max-width: 100%;
 }
 
 .context-bar-title {
@@ -596,6 +611,7 @@ main {
   max-width: 1400px;
   margin: 0 auto;
   padding: 1.25rem 1.5rem;
+  overflow-x: hidden;
 }
 
 section {
@@ -672,6 +688,48 @@ form {
   display: flex;
   flex: 1;
   min-width: 0;
+}
+
+/* Autocomplete wrapper */
+.autocomplete-wrapper {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+
+.autocomplete-wrapper input {
+  width: 100%;
+}
+
+.autocomplete-suggestions {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 50;
+  margin: 2px 0 0;
+  padding: 4px 0;
+  list-style: none;
+  background: var(--bg-suggestion);
+  border: 1px solid var(--border-input);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.autocomplete-suggestions li {
+  padding: 6px 12px;
+  cursor: pointer;
+  font-size: 0.875rem;
+  color: var(--text-primary);
+  transition: background 0.1s;
+}
+
+.autocomplete-suggestions li:hover,
+.autocomplete-suggestions li.selected {
+  background: var(--bg-suggestion-hover);
+  color: var(--accent);
 }
 
 .input-group input {
@@ -2791,6 +2849,45 @@ li:hover .remove-btn {
 }
 
 /* ============================================
+   TV Display — Tablet/Mobile Responsive
+   ============================================ */
+@media (max-width: 768px) {
+  .tv-content {
+    overflow-y: auto;
+    height: 100vh;
+    padding: 0.75rem;
+  }
+  .tv-courts {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 0.5rem;
+    flex: none;
+  }
+  .tv-court {
+    padding: 0.75rem;
+    gap: 0.5rem;
+  }
+  .tv-court-name {
+    font-size: clamp(1.25rem, 4vw, 2rem);
+  }
+  .tv-team {
+    font-size: clamp(0.8rem, 2.5vw, 1.1rem);
+  }
+  .tv-timer-floating {
+    font-size: 25vw;
+  }
+  .tv-header {
+    margin-bottom: 0.5rem;
+    padding-bottom: 0.5rem;
+  }
+}
+
+@media (max-width: 960px) and (min-width: 769px) {
+  .tv-courts {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+}
+
+/* ============================================
    TV Display — Large Screen Scaling (4K+)
    ============================================ */
 @media (min-width: 2560px) {
@@ -2823,6 +2920,15 @@ li:hover .remove-btn {
 /* ============================================
    Responsive
    ============================================ */
+@media (max-width: 960px) {
+  .management-section {
+    grid-template-columns: 1fr 1fr;
+  }
+  .management-section > .session-settings-card {
+    grid-column: 1 / -1;
+  }
+}
+
 @media (max-width: 768px) {
   main { padding: 0.75rem; }
   header { padding: 0.625rem 1rem; }

@@ -647,10 +647,12 @@ function App() {
     // Save current league's session state before switching
     if (selectedLeagueId) {
       log.app.debug('Saving session state for league', selectedLeagueId, 'before switch');
+      // Use refs for autoActiveRound, timerEndTime, and isOnBreak because
+      // handleAutoAdvance updates refs synchronously but React state may lag.
       saveSessionState(selectedLeagueId, {
-        autoActiveRound,
-        timerEndTime,
-        isOnBreak,
+        autoActiveRound: autoActiveRoundRef.current,
+        timerEndTime: timerEndTimeRef.current,
+        isOnBreak: isOnBreakRef.current,
         timerHidden,
         activeTab,
       });
@@ -1035,7 +1037,7 @@ function App() {
   return (
     <div className={`app ${darkMode ? 'dark' : ''}`}>
       <header>
-        <h1><img src={appLogo} alt="Pickle Admin" width={28} height={28} style={{ verticalAlign: 'middle', marginRight: 8, borderRadius: 6 }} /> Pickle Admin</h1>
+        <h1><a href="#" className="logo-link" onClick={(e) => { e.preventDefault(); handleSelectLeague(''); }}><img src={appLogo} alt="Pickle Admin" width={28} height={28} style={{ verticalAlign: 'middle', marginRight: 8, borderRadius: 6 }} /> Pickle Admin</a></h1>
         <div className="header-actions">
           <button
             className="dev-tools-secret"
