@@ -10,6 +10,7 @@ import {
   DevTools,
   TVDisplay
 } from './components';
+import OnboardingTour, { STORAGE_KEY as TOUR_STORAGE_KEY } from './components/OnboardingTour';
 import { api } from './api/client';
 import { League, Player, Court, Round, Assignment, LeagueFormat } from './types';
 import CourtIcon from './components/CourtIcon';
@@ -71,6 +72,9 @@ function App() {
     return saved ? JSON.parse(saved) : false;
   });
   const [showDevTools, setShowDevTools] = useState(false);
+  const [showTour, setShowTour] = useState(() => {
+    return !localStorage.getItem(TOUR_STORAGE_KEY);
+  });
 
   // Per-league session state cache — preserves timer/break state when switching leagues
   interface LeagueSessionState {
@@ -1155,6 +1159,7 @@ function App() {
 
 
                 <div className="management-section">
+                  <div data-tour="player-manager">
                   <PlayerManager
                     leagueId={selectedLeagueId}
                     players={players}
@@ -1163,6 +1168,8 @@ function App() {
                     onRemovePlayer={handleRemovePlayer}
                     nextInputId="court-input"
                   />
+                  </div>
+                  <div data-tour="court-manager">
                   <CourtManager
                     leagueId={selectedLeagueId}
                     courts={courts}
@@ -1170,8 +1177,9 @@ function App() {
                     onRemoveCourt={handleRemoveCourt}
                     inputId="court-input"
                   />
-                  <div className="session-settings-card">
-                    <h2>Settings</h2>
+                  </div>
+                  <div className="session-settings-card" data-tour="session-settings">
+                    <h2>⚙️ Settings</h2>
 
                     <div className="setting-group">
                       <label className="setting-label">Mode</label>
@@ -1196,8 +1204,8 @@ function App() {
                       )}
                       <p className="setting-hint">
                         {sessionMode === 'manual'
-                          ? 'You start each round manually'
-                          : 'Auto — rounds advance automatically when the timer ends'}
+                          ? 'You control when each round starts and ends'
+                          : 'Rounds rotate on a timer with optional breaks between them'}
                       </p>
                     </div>
 
@@ -1302,7 +1310,7 @@ function App() {
                   </div>
                 </div>
 
-                <div className="start-session-bar">
+                <div className="start-session-bar" data-tour="start-session">
                   <div className="start-session-stats">
                     <span className={`stat ${players.length >= 4 ? 'ready' : ''}`}>🧍 {players.length} player{players.length !== 1 ? 's' : ''}</span>
                     <span className={`stat ${courts.length >= 1 ? 'ready' : ''}`}><CourtIcon size={16} /> {courts.length} court{courts.length !== 1 ? 's' : ''}</span>
@@ -1464,6 +1472,16 @@ function App() {
           </>
         )}
       </main>
+
+      {selectedLeagueId && activeTab === 'setup' && (
+        <OnboardingTour
+          active={showTour}
+          onComplete={() => {
+            setShowTour(false);
+            localStorage.setItem(TOUR_STORAGE_KEY, 'true');
+          }}
+        />
+      )}
 
       {tvMode && currentRound && selectedLeague && (() => {
         const tvRound = sessionMode === 'auto' && autoActiveRound ? autoActiveRound : currentRound;
