@@ -13,7 +13,6 @@ import {
 import { api } from './api/client';
 import { League, Player, Court, Round, Assignment, LeagueFormat } from './types';
 import CourtIcon from './components/CourtIcon';
-import PickleballIcon from './components/PickleballIcon';
 import { playBuzzer, suppressBuzzerFor, warmUpAudio } from './utils/sound';
 import log from './utils/logger';
 
@@ -1035,7 +1034,7 @@ function App() {
   return (
     <div className={`app ${darkMode ? 'dark' : ''}`}>
       <header>
-        <h1><PickleballIcon size={28} /> Pickle Admin</h1>
+        <h1><img src="/pickleball_app_logo.png" alt="Pickle Admin" width={28} height={28} style={{ verticalAlign: 'middle', marginRight: 8, borderRadius: 6 }} /> Pickle Admin</h1>
         <div className="header-actions">
           <button
             className="dev-tools-secret"
