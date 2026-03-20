@@ -71,6 +71,10 @@ function App() {
     const saved = localStorage.getItem('darkMode');
     return saved ? JSON.parse(saved) : false;
   });
+  const [colorTheme, setColorTheme] = useState<'standard' | 'kinetic'>(() => {
+    const saved = localStorage.getItem('colorTheme');
+    return saved === 'kinetic' ? 'kinetic' : 'standard';
+  });
   const [showDevTools, setShowDevTools] = useState(false);
   // const [showTour, setShowTour] = useState(() => {
   //   return !localStorage.getItem(TOUR_STORAGE_KEY);
@@ -158,6 +162,10 @@ function App() {
   useEffect(() => {
     localStorage.setItem('darkMode', JSON.stringify(darkMode));
   }, [darkMode]);
+
+  useEffect(() => {
+    localStorage.setItem('colorTheme', colorTheme);
+  }, [colorTheme]);
 
   useEffect(() => { loadLeagues(); }, []);
 
@@ -1039,10 +1047,19 @@ function App() {
 
 
   return (
-    <div className={`app ${darkMode ? 'dark' : ''}`}>
+    <div className={`app ${darkMode ? 'dark' : ''} ${colorTheme === 'kinetic' ? 'theme-kinetic' : ''}`}>
       <header>
         <h1><a href="#" className="logo-link" onClick={(e) => { e.preventDefault(); handleSelectLeague(''); }}><img src={appLogo} alt="Pickle Admin" width={28} height={28} style={{ verticalAlign: 'middle', marginRight: 8, borderRadius: 6 }} /> Pickle Admin</a></h1>
         <div className="header-actions">
+          <select
+            className="theme-select"
+            value={colorTheme}
+            onChange={(e) => setColorTheme(e.target.value as 'standard' | 'kinetic')}
+            aria-label="Color theme"
+          >
+            <option value="standard">🎨 Classic</option>
+            <option value="kinetic">🎨 Court Neon</option>
+          </select>
           <button
             className="dev-tools-secret"
             onClick={() => setShowDevTools(!showDevTools)}

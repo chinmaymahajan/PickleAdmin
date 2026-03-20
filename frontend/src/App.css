@@ -3214,3 +3214,905 @@ li:hover .remove-btn {
     font-size: 0.8125rem;
   }
 }
+
+/* ============================================
+   Theme Selector
+   ============================================ */
+.theme-select {
+  padding: 0.375rem 0.625rem;
+  font-size: 0.8125rem;
+  font-family: inherit;
+  font-weight: 600;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-hover);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: all 0.15s;
+  margin-right: 0.25rem;
+}
+
+.theme-select:hover {
+  border-color: var(--accent);
+  background: var(--accent-light);
+}
+
+.theme-select:focus {
+  outline: none;
+  border-color: var(--border-focus);
+  box-shadow: 0 0 0 3px var(--focus-ring);
+}
+
+/* ============================================
+   Kinetic Court Theme — Light Mode
+   ============================================ */
+.theme-kinetic {
+  --bg-body: #F0F4F1;
+  --bg-header: #1A1A2E;
+  --bg-section: #ffffff;
+  --bg-card: #E8F0EA;
+  --bg-team: #ffffff;
+  --bg-input: #ffffff;
+  --bg-hover: #E0EBE3;
+  --bg-suggestion: #ffffff;
+  --bg-suggestion-hover: #E0EBE3;
+  --bg-format: #E8F0EA;
+  --bg-round-tabs: #D4E6D8;
+  --bg-save-bar: rgba(255,255,255,0.97);
+  --bg-loading: rgba(26,26,46,0.6);
+
+  --accent: #C8E64A;
+  --accent-hover: #B8D63A;
+  --accent-light: rgba(200,230,74,0.12);
+  --accent-shadow: rgba(200,230,74,0.3);
+
+  --cta: #C8E64A;
+  --cta-hover: #B8D63A;
+  --cta-shadow: rgba(200,230,74,0.35);
+
+  --text-primary: #1A1A2E;
+  --text-secondary: #2D2D44;
+  --text-tertiary: #4A4A66;
+  --text-muted: #7A7A99;
+  --text-accent: #1A1A2E;
+  --text-on-accent: #1A1A2E;
+
+  --border: #C8D6CC;
+  --border-strong: #A8BCA0;
+  --border-input: #B8CCB0;
+  --border-focus: #C8E64A;
+  --focus-ring: rgba(200,230,74,0.25);
+
+  --info-bg: #E8F0EA;
+  --info-border: #A8BCA0;
+  --info-text: #2D2D44;
+
+  --bye-bg: #FFF8E1;
+  --bye-border: #FFD54F;
+  --bye-text: #5D4037;
+
+  --badge-bg: #D4E6D8;
+  --badge-text: #2D2D44;
+  --badge-bye-bg: #FFF8E1;
+  --badge-bye-text: #5D4037;
+
+  --shadow-xs: 0 1px 2px rgba(26,26,46,0.05);
+  --shadow-sm: 0 1px 3px rgba(26,26,46,0.08), 0 1px 2px rgba(26,26,46,0.04);
+  --shadow-md: 0 4px 6px -1px rgba(26,26,46,0.08), 0 2px 4px -2px rgba(26,26,46,0.05);
+  --shadow-lg: 0 10px 15px -3px rgba(26,26,46,0.1), 0 4px 6px -4px rgba(26,26,46,0.05);
+  --shadow-toast: 0 8px 24px rgba(26,26,46,0.15);
+
+  --devtools-bg: #1A1A2E;
+  --devtools-panel-bg: #12121F;
+  --devtools-border: rgba(200,230,74,0.1);
+  --devtools-info: #7A7A99;
+}
+
+/* Kinetic header always dark */
+.theme-kinetic header {
+  background: #1A1A2E;
+  border-bottom-color: rgba(200,230,74,0.15);
+}
+
+.theme-kinetic header h1,
+.theme-kinetic .logo-link {
+  color: #C8E64A;
+}
+
+.theme-kinetic .theme-toggle {
+  background: rgba(200,230,74,0.1);
+  border-color: rgba(200,230,74,0.2);
+  color: #E0E0E0;
+}
+
+.theme-kinetic .theme-toggle:hover {
+  background: rgba(200,230,74,0.2);
+  border-color: #C8E64A;
+}
+
+.theme-kinetic .theme-select {
+  background: rgba(200,230,74,0.1);
+  border-color: rgba(200,230,74,0.2);
+  color: #E0E0E0;
+}
+
+.theme-kinetic .theme-select:hover {
+  border-color: #C8E64A;
+  background: rgba(200,230,74,0.2);
+}
+
+/* Kinetic CTA buttons — dark text on lime */
+.theme-kinetic .start-session-btn {
+  background: #C8E64A;
+  color: #1A1A2E;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.theme-kinetic .start-session-btn:hover:not(:disabled) {
+  background: #D4F05A;
+}
+
+.theme-kinetic .landing-cta {
+  background: #C8E64A;
+  color: #1A1A2E;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.theme-kinetic .landing-cta:hover {
+  background: #D4F05A;
+}
+
+/* Kinetic tab active state */
+.theme-kinetic .tab-btn.active {
+  background: #C8E64A;
+  color: #1A1A2E;
+}
+
+.theme-kinetic .tab-btn:hover:not(.active) {
+  background: rgba(200,230,74,0.12);
+  color: #1A1A2E;
+}
+
+/* Kinetic session format badge */
+.theme-kinetic .session-format-badge {
+  background: #C8E64A;
+  color: #1A1A2E;
+}
+
+/* Kinetic context bar */
+.theme-kinetic .context-bar {
+  background: rgba(200,230,74,0.06);
+  border-bottom-color: rgba(200,230,74,0.15);
+}
+
+/* Kinetic mode option active */
+.theme-kinetic .mode-option.active {
+  background: #C8E64A;
+  color: #1A1A2E;
+}
+
+/* Kinetic preset chip active */
+.theme-kinetic .preset-chip.active {
+  background: #C8E64A;
+  color: #1A1A2E;
+  border-color: #C8E64A;
+}
+
+/* Kinetic session status dot */
+.theme-kinetic .session-status-dot {
+  background: #C8E64A;
+}
+
+/* Kinetic court cards — match the Stitch design */
+.theme-kinetic .court-item {
+  background: #E8F0EA;
+  border-color: #C8D6CC;
+}
+
+/* ============================================
+   Kinetic Court Theme — Dark Mode Override
+   ============================================ */
+.theme-kinetic.dark {
+  --bg-body: #0D0D1A;
+  --bg-header: #1A1A2E;
+  --bg-section: #1A1A2E;
+  --bg-card: #1A1A2E;
+  --bg-team: #12121F;
+  --bg-input: #12121F;
+  --bg-hover: #2A2A44;
+  --bg-suggestion: #1A1A2E;
+  --bg-suggestion-hover: #2A2A44;
+  --bg-format: #12121F;
+  --bg-round-tabs: #12121F;
+  --bg-save-bar: rgba(26,26,46,0.97);
+  --bg-loading: rgba(0,0,0,0.7);
+
+  --accent: #C8E64A;
+  --accent-hover: #D4F05A;
+  --accent-light: rgba(200,230,74,0.1);
+  --accent-shadow: rgba(200,230,74,0.25);
+
+  --cta: #C8E64A;
+  --cta-hover: #D4F05A;
+  --cta-shadow: rgba(200,230,74,0.3);
+
+  --text-primary: #E8E8F0;
+  --text-secondary: #C0C0D4;
+  --text-tertiary: #8888AA;
+  --text-muted: #5A5A7A;
+  --text-accent: #C8E64A;
+  --text-on-accent: #1A1A2E;
+
+  --border: #2A2A44;
+  --border-strong: #3A3A55;
+  --border-input: #3A3A55;
+  --border-focus: #C8E64A;
+  --focus-ring: rgba(200,230,74,0.2);
+
+  --info-bg: #1A1A2E;
+  --info-border: #3A3A55;
+  --info-text: #C8E64A;
+
+  --badge-bg: #2A2A44;
+  --badge-text: #8888AA;
+
+  --shadow-xs: 0 1px 2px rgba(0,0,0,0.3);
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.4);
+  --shadow-md: 0 4px 6px rgba(0,0,0,0.4);
+  --shadow-lg: 0 10px 15px rgba(0,0,0,0.45);
+  --shadow-toast: 0 8px 24px rgba(0,0,0,0.5);
+}
+
+.theme-kinetic.dark .new-session-btn {
+  background: rgba(200,230,74,0.1);
+  color: #C8E64A;
+  border-color: rgba(200,230,74,0.25);
+}
+
+.theme-kinetic.dark .new-session-btn:hover {
+  background: rgba(200,230,74,0.2);
+  border-color: rgba(200,230,74,0.4);
+  color: #D4F05A;
+}
+
+/* ============================================
+   Kinetic Court Theme — Typography & Cards
+   ============================================ */
+.theme-kinetic {
+  font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+.theme-kinetic h2,
+.theme-kinetic h3,
+.theme-kinetic h4,
+.theme-kinetic .setting-label,
+.theme-kinetic .session-title {
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* Section cards get tinted background */
+.theme-kinetic .management-section > *,
+.theme-kinetic .management-section > [data-tour] > * {
+  background: #E8F0EA;
+  border-color: #C8D6CC;
+}
+
+.theme-kinetic.dark .management-section > *,
+.theme-kinetic.dark .management-section > [data-tour] > * {
+  background: #1A1A2E;
+  border-color: #2A2A44;
+}
+
+/* Player name label */
+.player-name-label {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.theme-kinetic .player-grid {
+  gap: 0.375rem;
+}
+
+.theme-kinetic .player-grid li {
+  background: #ffffff;
+  border: 1px solid #C8D6CC;
+  border-radius: var(--radius-md);
+  padding: 0.5rem 0.625rem;
+  font-weight: 600;
+  color: #1A1A2E;
+  box-shadow: 0 1px 2px rgba(26,26,46,0.06);
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.theme-kinetic .player-grid li:hover {
+  background: #ffffff;
+  border-color: #C8E64A;
+  box-shadow: 0 2px 6px rgba(200,230,74,0.15);
+}
+
+.theme-kinetic.dark .player-grid li {
+  background: #12121F;
+  border-color: #2A2A44;
+  color: #E8E8F0;
+}
+
+.theme-kinetic.dark .player-grid li:hover {
+  background: #1A1A2E;
+  border-color: #C8E64A;
+}
+
+/* Court list items as prominent boxes */
+.theme-kinetic .court-manager ul {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.5rem;
+}
+
+.theme-kinetic .court-manager ul li {
+  background: #ffffff;
+  border: 1px solid #C8D6CC;
+  border-radius: var(--radius-lg);
+  padding: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 700;
+  font-size: 0.75rem;
+  color: #7A7A99;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  box-shadow: 0 1px 3px rgba(26,26,46,0.06);
+  transition: border-color 0.15s, box-shadow 0.15s;
+  min-height: 4rem;
+}
+
+.theme-kinetic .court-manager ul li:hover {
+  background: #ffffff;
+  border-color: #C8E64A;
+  box-shadow: 0 2px 8px rgba(200,230,74,0.15);
+}
+
+.theme-kinetic.dark .court-manager ul li {
+  background: #12121F;
+  border-color: #2A2A44;
+}
+
+.theme-kinetic.dark .court-manager ul li:hover {
+  background: #1A1A2E;
+  border-color: #C8E64A;
+}
+
+/* Court remove button positioning in kinetic grid */
+.theme-kinetic .court-manager ul li .remove-btn {
+  position: absolute;
+  top: 0.25rem;
+  right: 0.25rem;
+}
+
+.theme-kinetic .court-manager ul li {
+  position: relative;
+}
+
+/* Session settings card in kinetic */
+.theme-kinetic .session-settings-card {
+  background: #ffffff;
+  border-color: #C8D6CC;
+}
+
+.theme-kinetic.dark .session-settings-card {
+  background: #1A1A2E;
+  border-color: #2A2A44;
+}
+
+/* Start session bar in kinetic */
+.theme-kinetic .start-session-bar {
+  background: #ffffff;
+  border-color: #C8D6CC;
+}
+
+.theme-kinetic.dark .start-session-bar {
+  background: #1A1A2E;
+  border-color: #2A2A44;
+}
+
+/* Kinetic timer display */
+.theme-kinetic .round-timer .timer-display {
+  font-family: 'Space Grotesk', monospace;
+}
+
+/* Kinetic player count badge */
+.theme-kinetic .player-count-badge {
+  background: #C8E64A;
+  color: #1A1A2E;
+  font-weight: 700;
+}
+
+/* Kinetic input styling */
+.theme-kinetic input[type="text"],
+.theme-kinetic input[type="number"] {
+  border-color: #C8D6CC;
+  background: #ffffff;
+  color: #1A1A2E;
+}
+
+.theme-kinetic input[type="text"]:focus,
+.theme-kinetic input[type="number"]:focus {
+  border-color: #C8E64A;
+  box-shadow: 0 0 0 3px rgba(200,230,74,0.2);
+}
+
+.theme-kinetic.dark input[type="text"],
+.theme-kinetic.dark input[type="number"] {
+  border-color: #2A2A44;
+  background: #12121F;
+  color: #E8E8F0;
+}
+
+.theme-kinetic.dark input[type="text"]:focus,
+.theme-kinetic.dark input[type="number"]:focus {
+  border-color: #C8E64A;
+  box-shadow: 0 0 0 3px rgba(200,230,74,0.15);
+}
+
+/* Court number element — hidden by default, shown in Kinetic */
+.court-number {
+  display: none;
+}
+
+.theme-kinetic .court-label {
+  display: none;
+}
+
+.theme-kinetic .court-number {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.125rem;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #1A1A2E;
+  line-height: 1;
+}
+
+.theme-kinetic .court-number::before {
+  content: 'COURT';
+  font-size: 0.625rem;
+  font-weight: 600;
+  color: #7A7A99;
+  letter-spacing: 0.08em;
+}
+
+.theme-kinetic.dark .court-number {
+  color: #E8E8F0;
+}
+
+.theme-kinetic.dark .court-number::before {
+  color: #5A5A7A;
+}
+
+/* ============================================
+   Kinetic Court Theme — Rounds Page
+   ============================================ */
+
+/* Rounds section background */
+.theme-kinetic .rounds-section {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+}
+
+/* Round display title — large bold uppercase */
+.theme-kinetic .round-display h2 {
+  font-size: 1.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--text-primary);
+}
+
+/* Round timer — dark hero banner style */
+.theme-kinetic .round-timer {
+  background: #1A1A2E;
+  border: none;
+  border-radius: var(--radius-lg);
+  padding: 1.25rem 1.5rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.theme-kinetic .round-timer::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(200,230,74,0.08) 0%, transparent 60%);
+  pointer-events: none;
+}
+
+.theme-kinetic .round-timer .timer-display {
+  font-family: 'Space Grotesk', monospace;
+  font-size: 2rem;
+  font-weight: 700;
+  color: #C8E64A;
+  background: rgba(200,230,74,0.1);
+  padding: 0.25rem 0.75rem;
+  border-radius: var(--radius-md);
+}
+
+.theme-kinetic .round-timer .timer-label {
+  color: #8888AA;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 0.6875rem;
+}
+
+.theme-kinetic .round-timer.warning .timer-display {
+  color: #FBBF24;
+  background: rgba(251,191,36,0.1);
+}
+
+.theme-kinetic .round-timer.expired {
+  background: #1A1A2E;
+  border-color: transparent;
+}
+
+.theme-kinetic .round-timer.expired .timer-display {
+  color: #EF4444;
+  background: rgba(239,68,68,0.1);
+}
+
+.theme-kinetic .round-timer.on-break {
+  background: #1A1A2E;
+  border-color: transparent;
+}
+
+.theme-kinetic .round-timer.on-break .timer-display {
+  color: #60A5FA;
+  background: rgba(96,165,250,0.1);
+}
+
+.theme-kinetic .round-timer.on-break .timer-label {
+  color: #60A5FA;
+}
+
+/* Round navigator tabs — pill style */
+.theme-kinetic .round-tabs {
+  background: transparent;
+  border: none;
+  gap: 0.375rem;
+  padding: 0;
+}
+
+.theme-kinetic .round-tab {
+  background: #ffffff;
+  border: 1px solid #C8D6CC;
+  border-radius: 999px;
+  padding: 0.375rem 1rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #4A4A66;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.theme-kinetic .round-tab:hover:not(.active) {
+  background: #E8F0EA;
+  border-color: #A8BCA0;
+  color: #1A1A2E;
+}
+
+.theme-kinetic .round-tab.active {
+  background: #C8E64A;
+  color: #1A1A2E;
+  border-color: #C8E64A;
+  font-weight: 700;
+}
+
+.theme-kinetic.dark .round-tab {
+  background: #1A1A2E;
+  border-color: #2A2A44;
+  color: #8888AA;
+}
+
+.theme-kinetic.dark .round-tab:hover:not(.active) {
+  background: #2A2A44;
+  color: #E8E8F0;
+}
+
+.theme-kinetic.dark .round-tab.active {
+  background: #C8E64A;
+  color: #1A1A2E;
+  border-color: #C8E64A;
+}
+
+/* Court assignment cards — 3 column grid */
+.theme-kinetic .assignments {
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.75rem;
+}
+
+.theme-kinetic .court-assignment {
+  background: #ffffff;
+  border: 1px solid #C8D6CC;
+  border-radius: var(--radius-lg);
+  padding: 1rem;
+  box-shadow: 0 1px 3px rgba(26,26,46,0.06);
+}
+
+.theme-kinetic .court-assignment:hover {
+  border-color: #C8E64A;
+  box-shadow: 0 4px 12px rgba(200,230,74,0.12);
+}
+
+/* Court header — large court number */
+.theme-kinetic .court-assignment h3 {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #1A1A2E;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  border-bottom: 1px solid #E0EBE3;
+  padding-bottom: 0.5rem;
+  margin-bottom: 0.625rem;
+}
+
+/* Teams layout */
+.theme-kinetic .team {
+  background: #F0F4F1;
+  border: 1px solid #D4E6D8;
+  border-radius: var(--radius-md);
+  padding: 0.5rem;
+}
+
+.theme-kinetic .team h4 {
+  font-size: 0.5625rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #7A7A99;
+  margin-bottom: 0.375rem;
+}
+
+/* VS badge */
+.theme-kinetic .vs-badge {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  color: #7A7A99;
+  letter-spacing: 0.06em;
+}
+
+/* Player typeahead inputs in kinetic */
+.theme-kinetic .player-typeahead-input {
+  background: #ffffff;
+  border-color: #D4E6D8;
+  font-weight: 500;
+  color: #1A1A2E;
+}
+
+.theme-kinetic .player-typeahead-input:focus {
+  border-color: #C8E64A;
+  box-shadow: 0 0 0 3px rgba(200,230,74,0.2);
+}
+
+/* On Bench section */
+.theme-kinetic .players-waiting {
+  background: #ffffff;
+  border: 1px solid #C8D6CC;
+  border-radius: var(--radius-lg);
+  padding: 1rem;
+  margin-top: 1rem;
+}
+
+.theme-kinetic .players-waiting h3 {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #1A1A2E;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.theme-kinetic .players-waiting ul {
+  gap: 0.5rem;
+}
+
+.theme-kinetic .players-waiting li {
+  background: #F0F4F1;
+  border: 1px solid #D4E6D8;
+  border-radius: var(--radius-md);
+  padding: 0.375rem 0.625rem;
+  font-weight: 500;
+  color: #1A1A2E;
+  cursor: grab;
+}
+
+.theme-kinetic .players-waiting li:hover {
+  background: #E8F0EA;
+  border-color: #C8E64A;
+}
+
+/* Save bar in kinetic */
+.theme-kinetic .assignment-save-bar {
+  background: #1A1A2E;
+  border-color: rgba(200,230,74,0.2);
+}
+
+.theme-kinetic .save-button {
+  background: #C8E64A;
+  color: #1A1A2E;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.theme-kinetic .save-button:hover:not(:disabled) {
+  background: #D4F05A;
+}
+
+/* TV mode button in kinetic */
+.theme-kinetic .tv-mode-btn {
+  background: #C8E64A;
+  color: #1A1A2E;
+  font-weight: 700;
+  border: none;
+}
+
+.theme-kinetic .tv-mode-btn:hover {
+  background: #D4F05A;
+}
+
+/* --- Dark mode overrides for rounds --- */
+.theme-kinetic.dark .court-assignment {
+  background: #1A1A2E;
+  border-color: #2A2A44;
+}
+
+.theme-kinetic.dark .court-assignment:hover {
+  border-color: #C8E64A;
+  box-shadow: 0 4px 12px rgba(200,230,74,0.08);
+}
+
+.theme-kinetic.dark .court-assignment h3 {
+  color: #E8E8F0;
+  border-bottom-color: #2A2A44;
+}
+
+.theme-kinetic.dark .team {
+  background: #12121F;
+  border-color: #2A2A44;
+}
+
+.theme-kinetic.dark .team h4 {
+  color: #5A5A7A;
+}
+
+.theme-kinetic.dark .vs-badge {
+  color: #5A5A7A;
+}
+
+.theme-kinetic.dark .player-typeahead-input {
+  background: #12121F;
+  border-color: #2A2A44;
+  color: #E8E8F0;
+}
+
+.theme-kinetic.dark .player-typeahead-input:focus {
+  border-color: #C8E64A;
+  box-shadow: 0 0 0 3px rgba(200,230,74,0.15);
+}
+
+.theme-kinetic.dark .players-waiting {
+  background: #1A1A2E;
+  border-color: #2A2A44;
+}
+
+.theme-kinetic.dark .players-waiting h3 {
+  color: #E8E8F0;
+}
+
+.theme-kinetic.dark .players-waiting li {
+  background: #12121F;
+  border-color: #2A2A44;
+  color: #E8E8F0;
+}
+
+.theme-kinetic.dark .players-waiting li:hover {
+  background: #2A2A44;
+  border-color: #C8E64A;
+}
+
+/* Responsive: 2 columns on medium screens */
+@media (max-width: 1024px) {
+  .theme-kinetic .assignments {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .theme-kinetic .assignments {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ============================================
+   Kinetic / Court Neon — Tab Nav as Header Links
+   ============================================ */
+.theme-kinetic .tab-nav {
+  background: transparent;
+  border: none;
+  padding: 0;
+  gap: 0.25rem;
+  border-radius: 0;
+  margin-bottom: 1.25rem;
+}
+
+.theme-kinetic .tab-btn {
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-md);
+  padding: 0.625rem 1.5rem;
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 1rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #7A7A99;
+  position: relative;
+  box-shadow: none;
+  transition: all 0.15s;
+}
+
+.theme-kinetic .tab-btn::after {
+  display: none;
+}
+
+.theme-kinetic .tab-btn:hover:not(.active) {
+  background: rgba(200,230,74,0.08);
+  color: #1A1A2E;
+  box-shadow: none;
+  transform: none;
+}
+
+.theme-kinetic .tab-btn:hover:not(.active)::after {
+  background: transparent;
+}
+
+.theme-kinetic .tab-btn.active {
+  background: #1A1A2E;
+  color: #C8E64A;
+  box-shadow: 0 2px 8px rgba(26,26,46,0.15);
+  border-radius: var(--radius-md);
+}
+
+.theme-kinetic .tab-btn.active::after {
+  display: none;
+}
+
+/* Dark mode */
+.theme-kinetic.dark .tab-nav {
+  border-bottom-color: #2A2A44;
+}
+
+.theme-kinetic.dark .tab-btn {
+  color: #5A5A7A;
+}
+
+.theme-kinetic.dark .tab-btn:hover:not(.active) {
+  background: rgba(200,230,74,0.06);
+  color: #E8E8F0;
+}
+
+.theme-kinetic.dark .tab-btn.active {
+  background: #C8E64A;
+  color: #1A1A2E;
+  box-shadow: 0 2px 8px rgba(200,230,74,0.2);
+}

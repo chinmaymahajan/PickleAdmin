@@ -310,7 +310,9 @@ const PlayerManager: React.FC<PlayerManagerProps> = ({
           <ul className="player-grid">
             {players.map((player) => (
               <li key={player.id}>
-                <span>{player.name}</span>
+                <span className="player-name-label">
+                  {player.name}
+                </span>
                 <button
                   className="remove-btn"
                   onClick={() => onRemovePlayer(player.id)}

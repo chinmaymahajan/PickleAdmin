@@ -77,8 +77,9 @@ const CourtManager: React.FC<CourtManagerProps> = ({
         ) : (
           <ul>
             {courts.map((court) => (
-              <li key={court.id}>
-                <span>{court.identifier}</span>
+              <li key={court.id} className="court-item">
+                <span className="court-label">{court.identifier}</span>
+                <span className="court-number">{court.identifier.replace(/\D/g, '')}</span>
                 <button
                   className="remove-btn"
                   onClick={() => onRemoveCourt(court.id)}
