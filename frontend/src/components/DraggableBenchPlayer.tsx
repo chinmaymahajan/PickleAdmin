@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { Player } from '../types';
 import { DragData } from './dragTypes';
+import { useTouchDrag } from './useTouchDrag';
 
 interface DraggableBenchPlayerProps {
   player: Player;
@@ -16,6 +17,27 @@ const DraggableBenchPlayer: React.FC<DraggableBenchPlayerProps> = ({
   disabled,
 }) => {
   const [isDragging, setIsDragging] = useState(false);
+
+  const dragData: DragData = useMemo(() => ({
+    playerId: player.id,
+    source: { type: 'bench' as const },
+  }), [player.id]);
+
+  const handleTouchDragStart = useCallback((data: DragData) => {
+    setIsDragging(true);
+    onDragStart(data);
+  }, [onDragStart]);
+
+  const handleTouchDragEnd = useCallback(() => {
+    setIsDragging(false);
+  }, []);
+
+  const touchDragHandlers = useTouchDrag({
+    dragData,
+    disabled,
+    onDragStart: handleTouchDragStart,
+    onDragEnd: handleTouchDragEnd,
+  });
 
   const handleDragStart = (e: React.DragEvent<HTMLLIElement>) => {
     const dragData: DragData = {
@@ -43,6 +65,7 @@ const DraggableBenchPlayer: React.FC<DraggableBenchPlayerProps> = ({
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
       style={{ cursor: disabled ? 'default' : 'grab' }}
+      {...touchDragHandlers}
     >
       {player.name}
       {byeCount > 0 && (

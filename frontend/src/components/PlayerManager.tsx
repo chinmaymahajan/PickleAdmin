@@ -40,6 +40,35 @@ const PlayerManager: React.FC<PlayerManagerProps> = ({
   const [importProgress, setImportProgress] = useState<{ done: number; total: number } | null>(null);
   const errorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Player Directory state
+  const [directoryNames, setDirectoryNames] = useState<string[]>([]);
+  const [showDirectory, setShowDirectory] = useState(false);
+  const [directorySearch, setDirectorySearch] = useState('');
+  const [addingFromDir, setAddingFromDir] = useState<string | null>(null);
+  const directorySearchRef = useRef<HTMLInputElement>(null);
+
+  // Fetch player directory (names not in current session)
+  const fetchDirectory = useCallback(async () => {
+    try {
+      if (typeof api.getPlayerDirectory !== 'function') return;
+      const names = await api.getPlayerDirectory(players.map(p => p.name));
+      setDirectoryNames(names || []);
+    } catch { setDirectoryNames([]); }
+  }, [players]);
+
+  useEffect(() => {
+    fetchDirectory();
+  }, [fetchDirectory]);
+
+  // Focus search input when directory modal opens
+  useEffect(() => {
+    if (showDirectory) {
+      setTimeout(() => directorySearchRef.current?.focus(), 50);
+    } else {
+      setDirectorySearch('');
+    }
+  }, [showDirectory]);
+
   // Auto-dismiss errors after 5 seconds
   useEffect(() => {
     if (errorTimerRef.current) clearTimeout(errorTimerRef.current);
@@ -197,6 +226,18 @@ const PlayerManager: React.FC<PlayerManagerProps> = ({
     }
   };
 
+  const handleAddFromDirectory = async (name: string) => {
+    if (addingFromDir || isSubmitting) return;
+    setAddingFromDir(name);
+    try {
+      await onAddPlayer(name);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to add player');
+    } finally {
+      setAddingFromDir(null);
+    }
+  };
+
   return (
     <div className="player-manager">
       <h2>Players <span className="player-count-badge">{players.length}</span></h2>
@@ -263,6 +304,16 @@ const PlayerManager: React.FC<PlayerManagerProps> = ({
             )}
           </div>
           <button type="submit" disabled={isSubmitting}>Add</button>
+          {directoryNames && directoryNames.length > 0 && (
+            <button
+              type="button"
+              className="directory-open-btn"
+              onClick={() => setShowDirectory(true)}
+            >
+              Player Directory
+              <span className="player-count-badge">{directoryNames.length}</span>
+            </button>
+          )}
           <button
             type="button"
             className="import-btn"
@@ -296,6 +347,56 @@ const PlayerManager: React.FC<PlayerManagerProps> = ({
               <button className="import-confirm-btn" onClick={handleImportConfirm}>Import All</button>
               <button className="import-cancel-btn" onClick={() => { setShowImportPreview(false); setImportNames([]); setError(null); }}>Cancel</button>
             </div>
+          </div>
+        </div>
+      )}
+      {showDirectory && (
+        <div className="directory-modal-overlay" onClick={() => setShowDirectory(false)}>
+          <div className="directory-modal" onClick={e => e.stopPropagation()}>
+            <div className="directory-modal-header">
+              <h3>Player Directory</h3>
+              <button
+                type="button"
+                className="directory-modal-close"
+                onClick={() => setShowDirectory(false)}
+                aria-label="Close directory"
+              >×</button>
+            </div>
+            <input
+              ref={directorySearchRef}
+              type="text"
+              className="directory-search"
+              placeholder="Search players…"
+              value={directorySearch}
+              onChange={e => setDirectorySearch(e.target.value)}
+              autoComplete="off"
+            />
+            <ul className="directory-list" role="listbox" aria-label="Player directory">
+              {directoryNames
+                .filter(n => n.toLowerCase().includes(directorySearch.toLowerCase()))
+                .map(name => (
+                  <li
+                    key={name}
+                    role="option"
+                    aria-selected={false}
+                  >
+                    <span className="directory-player-name">{name}</span>
+                    <button
+                      type="button"
+                      className="directory-add-btn"
+                      disabled={addingFromDir === name}
+                      onClick={() => handleAddFromDirectory(name)}
+                      aria-label={`Add ${name}`}
+                    >
+                      {addingFromDir === name ? '…' : '+'}
+                    </button>
+                  </li>
+                ))
+              }
+              {directoryNames.filter(n => n.toLowerCase().includes(directorySearch.toLowerCase())).length === 0 && (
+                <li className="directory-empty">No matching players</li>
+              )}
+            </ul>
           </div>
         </div>
       )}

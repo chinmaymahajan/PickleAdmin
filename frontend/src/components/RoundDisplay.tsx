@@ -317,7 +317,7 @@ const RoundDisplay: React.FC<RoundDisplayProps> = ({
   };
 
   return (
-    <div className="round-display" onDragEnd={handleDragEnd}>
+    <div className={`round-display ${hasUnsavedChanges ? 'has-save-bar' : ''}`} onDragEnd={handleDragEnd}>
       <h2>Round {round.roundNumber}</h2>
 
       {sortedAssignments.length === 0 ? (

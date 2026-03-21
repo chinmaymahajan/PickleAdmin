@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { Assignment } from '../types';
 import { DragData } from './dragTypes';
+import { useTouchDrag } from './useTouchDrag';
+import { useTouchDropTarget } from './useTouchDropTarget';
 
 interface DraggablePlayerSlotProps {
   assignment: Assignment;
@@ -32,6 +34,33 @@ const DraggablePlayerSlot: React.FC<DraggablePlayerSlotProps> = ({
   children,
 }) => {
   const [isDragging, setIsDragging] = useState(false);
+
+  const dragData: DragData = useMemo(() => ({
+    playerId,
+    source: { type: 'court' as const, assignmentId: assignment.id, team, index: playerIndex },
+  }), [playerId, assignment.id, team, playerIndex]);
+
+  const handleTouchDragEnd = useCallback(() => {
+    setIsDragging(false);
+  }, []);
+
+  const handleTouchDragStart = useCallback((data: DragData) => {
+    setIsDragging(true);
+    onDragStart(data);
+  }, [onDragStart]);
+
+  const touchDragHandlers = useTouchDrag({
+    dragData,
+    disabled,
+    onDragStart: handleTouchDragStart,
+    onDragEnd: handleTouchDragEnd,
+  });
+
+  const touchDropRef = useTouchDropTarget({
+    onDragOver: () => onDragOverSlot(assignment.id, team, playerIndex),
+    onDragLeave,
+    onDrop: () => onDrop(assignment.id, team, playerIndex),
+  });
 
   // Prevent the input from gaining focus when the user mousedowns to start
   // a drag. Without this, the browser focuses the input → typeahead opens →
@@ -87,8 +116,14 @@ const DraggablePlayerSlot: React.FC<DraggablePlayerSlotProps> = ({
     isDragging ? 'dragging' : '',
   ].filter(Boolean).join(' ');
 
+  // Merge the touch drop ref with the li element
+  const setRef = useCallback((el: HTMLLIElement | null) => {
+    (touchDropRef as React.MutableRefObject<HTMLLIElement | null>).current = el;
+  }, [touchDropRef]);
+
   return (
     <li
+      ref={setRef}
       className={classNames}
       draggable={!disabled}
       onMouseDown={handleMouseDown}
@@ -97,6 +132,7 @@ const DraggablePlayerSlot: React.FC<DraggablePlayerSlotProps> = ({
       onDragOver={handleDragOver}
       onDrop={handleDrop}
       onDragLeave={onDragLeave}
+      {...touchDragHandlers}
     >
       {children}
     </li>

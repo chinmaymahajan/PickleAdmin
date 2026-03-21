@@ -359,6 +359,14 @@ export const api = {
       .slice(0, 8);
   },
 
+  /** Return all names from the player directory, excluding given names. */
+  async getPlayerDirectory(excludeNames: string[]): Promise<string[]> {
+    const excludeSet = new Set(excludeNames.map(n => n.toLowerCase()));
+    return loadPlayerDirectory()
+      .filter(n => !excludeSet.has(n.toLowerCase()))
+      .sort((a, b) => a.localeCompare(b));
+  },
+
   async deletePlayer(playerId: string): Promise<void> {
     log.api.info('deletePlayer —', playerId);
     const store = loadStore();
