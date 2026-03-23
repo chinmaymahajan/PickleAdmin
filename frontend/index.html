@@ -3,13 +3,155 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <!-- SEO Meta Tags -->
+    <title>CourtControl — Free Pickleball & Tennis Session Manager</title>
+    <meta name="description" content="Free, open-source session manager for pickleball and tennis. Automate player rotations, court assignments, round-robin scheduling, and timers. No sign-up required." />
+    <meta name="keywords" content="pickleball session manager, pickleball round robin app, pickleball round robin generator, pickleball rotation app, pickleball court assignment, pickleball open play organizer, pickleball league manager, pickleball doubles rotation, pickleball tournament bracket, pickleball scorekeeper, pickleball mixer, free pickleball app, tennis round robin, tennis social organizer, tennis mixer app, tennis doubles rotation, tennis court scheduler, tennis ladder league, court rotation app, court assignment tool, round robin scheduler, player rotation generator, doubles match maker, bye fairness, partner rotation, padel round robin, badminton rotation, racket sport organizer, session timer, TV court display" />
+    <meta name="author" content="CourtControl" />
+    <link rel="canonical" href="https://courtcontrol.pro/" />
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://courtcontrol.pro/" />
+    <meta property="og:title" content="CourtControl — Free Pickleball & Tennis Session Manager" />
+    <meta property="og:description" content="Automate player rotations, court assignments, and round-robin scheduling for pickleball and tennis. Free, no sign-up, works offline." />
+    <meta property="og:image" content="https://courtcontrol.pro/og-image.png" />
+    <meta property="og:site_name" content="CourtControl" />
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:url" content="https://courtcontrol.pro/" />
+    <meta name="twitter:title" content="CourtControl — Free Pickleball & Tennis Session Manager" />
+    <meta name="twitter:description" content="Automate player rotations, court assignments, and round-robin scheduling for pickleball and tennis. Free, no sign-up, works offline." />
+    <meta name="twitter:image" content="https://courtcontrol.pro/og-image.png" />
+
+    <!-- Theme & Mobile -->
+    <meta name="theme-color" content="#16A34A" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="CourtControl" />
+
+    <!-- Structured Data / JSON-LD -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      "name": "CourtControl",
+      "url": "https://courtcontrol.pro/",
+      "description": "Free, open-source session manager for pickleball and tennis. Automate player rotations, court assignments, round-robin scheduling, and timers.",
+      "applicationCategory": "SportsApplication",
+      "operatingSystem": "Web",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD"
+      },
+      "featureList": [
+        "Automatic player rotation",
+        "Court assignment optimization",
+        "Round-robin scheduling",
+        "Session timer with auto-advance",
+        "TV display mode for courts",
+        "Bye fairness balancing",
+        "Partner uniqueness tracking",
+        "Offline support — no server needed"
+      ]
+    }
+    </script>
+
+    <!-- FAQ Structured Data -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "Is CourtControl really free?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Yes, completely free. No sign-up, no trial period, no hidden fees. It's open source and runs entirely in your browser."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Does CourtControl work offline?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Yes. CourtControl stores everything in your browser's local storage. No internet connection is needed after the page loads."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Can I use CourtControl for tennis, not just pickleball?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Absolutely. CourtControl works for any court sport with player rotations — pickleball, tennis, badminton, padel, you name it."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "How many players can CourtControl handle?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "CourtControl supports up to 64 players and 16 courts per session, which covers the vast majority of open play and social events."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "What is a bye in round robin?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "A bye means a player sits out for a round because there are more players than court spots. CourtControl distributes byes fairly so no one sits out more than others."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Can players join a session mid-way?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Yes. Add new players at any time and generate the next round — CourtControl incorporates them automatically."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "What is TV Display mode?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "TV Display mode shows the current round's court assignments in a large, easy-to-read format. Cast it to a TV or monitor at the courts so all players can see where they're playing."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Is my data private on CourtControl?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Yes. All data stays in your browser. Nothing is sent to any server. If you clear your browser data, your sessions are gone — so export if you need a backup."
+          }
+        }
+      ]
+    }
+    </script>
+
+    <!-- Fonts — preload primary weight to avoid FOIT -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Fira+Sans:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" />
     <link href="https://fonts.googleapis.com/css2?family=Fira+Sans:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- DNS prefetch for third-party origins -->
+    <link rel="dns-prefetch" href="https://www.googletagmanager.com" />
+
+    <!-- Icons -->
     <link rel="icon" type="image/png" href="/pickleball_app_logo.png" />
     <link rel="apple-touch-icon" href="/pickleball_app_logo.png" />
-    <title>Pickle Admin</title>
-    <!-- Google tag (gtag.js) -->
+
+    <!-- Web App Manifest -->
+    <link rel="manifest" href="/manifest.json" />
+
+    <!-- Google Analytics -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-Q2P447QKLW"></script>
     <script>
       window.dataLayer = window.dataLayer || [];
@@ -19,7 +161,119 @@
     </script>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <!-- Static fallback content for SEO crawlers — replaced by React on hydration -->
+      <div style="max-width:720px;margin:0 auto;padding:48px 24px;font-family:system-ui,sans-serif;color:#1e293b">
+        <header style="text-align:center;margin-bottom:40px">
+          <h1 style="font-size:2rem;margin:0 0 8px">CourtControl</h1>
+          <p style="font-size:1.15rem;color:#475569;margin:0">Free Pickleball &amp; Tennis Session Manager</p>
+        </header>
+
+        <p>Run pickleball and tennis sessions without the headache. CourtControl is a free round robin generator and session manager that automates player rotations, court assignments, round-robin scheduling, and timers so you can focus on the games. Works for pickleball open play, tennis socials, padel mixers, and any racket sport with court rotations.</p>
+
+        <h2 style="font-size:1.25rem;margin-top:32px">Features</h2>
+        <ul>
+          <li>Automatic player rotation with fairness balancing</li>
+          <li>Smart court assignment optimization</li>
+          <li>Round-robin and king-of-the-court formats</li>
+          <li>Session timer with auto-advance between rounds</li>
+          <li>TV display mode — cast court assignments to a big screen</li>
+          <li>Bye fairness — no one sits out twice in a row</li>
+          <li>Partner uniqueness tracking across rounds</li>
+          <li>Drag-and-drop player management</li>
+          <li>Works offline — your data never leaves your device</li>
+        </ul>
+
+        <h2 style="font-size:1.25rem;margin-top:32px">How It Works</h2>
+        <ol>
+          <li>Create a session and choose your format (doubles, singles, or mixed)</li>
+          <li>Add players and courts</li>
+          <li>Generate rounds — CourtControl handles rotations, byes, and court assignments automatically</li>
+          <li>Use the built-in timer or advance rounds manually</li>
+        </ol>
+
+        <h2 style="font-size:1.25rem;margin-top:32px">Why CourtControl?</h2>
+        <p>Most pickleball and tennis organizers juggle spreadsheets, whiteboards, or mental math to manage player rotations and court assignments. CourtControl is a free, instant, no-sign-up round robin generator and doubles match maker that runs entirely in your browser. No app download needed — just open and play.</p>
+
+        <h2 style="font-size:1.25rem;margin-top:32px">Perfect For</h2>
+        <ul>
+          <li>Pickleball open play and round robin tournaments</li>
+          <li>Tennis socials, mixers, and ladder leagues</li>
+          <li>Padel and badminton rotation events</li>
+          <li>Recreation centers and community courts</li>
+          <li>Club organizers and league directors</li>
+          <li>Drop-in sessions at parks, gyms, and sports clubs</li>
+          <li>Doubles and singles match scheduling</li>
+        </ul>
+
+        <h2 style="font-size:1.25rem;margin-top:32px">How to Run a Pickleball Round Robin</h2>
+        <p>A round robin is the most popular format for pickleball open play. Every player (or team) rotates through matches so everyone plays with and against different people. Here's how to set one up with CourtControl:</p>
+        <ol>
+          <li>Count your players and available courts. For doubles, you need at least 4 players per court.</li>
+          <li>Open CourtControl and create a new session. Select "Doubles" or "Singles" format.</li>
+          <li>Add all players by name — you can type them in or import a list.</li>
+          <li>Set your number of courts and hit "Generate Round." CourtControl assigns players to courts, balances byes, and ensures partner variety.</li>
+          <li>After each round, generate the next one. The algorithm avoids repeat partnerships and keeps sit-outs fair.</li>
+        </ol>
+        <p>No spreadsheets, no drawing names from a hat. The whole rotation runs itself.</p>
+
+        <h2 style="font-size:1.25rem;margin-top:32px">How to Organize a Tennis Social</h2>
+        <p>Tennis socials (also called mixers or round robins) are a great way to get players of different levels on the court together. CourtControl works for tennis the same way it works for pickleball:</p>
+        <ol>
+          <li>Create a session and choose singles or doubles format.</li>
+          <li>Add your players and set the number of courts available.</li>
+          <li>Generate rounds — each round assigns players to courts with fresh matchups.</li>
+          <li>Use the timer to keep rounds on schedule, or advance manually when games finish.</li>
+        </ol>
+        <p>CourtControl tracks who has played with whom, so repeat pairings are minimized across the session.</p>
+
+        <h2 style="font-size:1.25rem;margin-top:32px">Tips for Managing Court Rotations</h2>
+        <ul>
+          <li>Plan for 10–15 minutes per round in pickleball, 20–30 minutes for tennis.</li>
+          <li>If you have more players than court spots, CourtControl automatically assigns byes and rotates fairly.</li>
+          <li>Use TV Display mode to cast the current round to a screen at the courts — players can see their assignments without crowding around a phone.</li>
+          <li>For drop-in sessions where players arrive late, just add them mid-session. CourtControl adjusts the next round automatically.</li>
+          <li>Export your session data if you want to track results over time.</li>
+        </ul>
+
+        <h2 style="font-size:1.25rem;margin-top:32px">Frequently Asked Questions</h2>
+        <dl>
+          <dt style="font-weight:600;margin-top:16px">Is CourtControl really free?</dt>
+          <dd style="margin:4px 0 0 0;color:#475569">Yes, completely free. No sign-up, no trial period, no hidden fees. It's open source and runs entirely in your browser.</dd>
+
+          <dt style="font-weight:600;margin-top:16px">Does it work offline?</dt>
+          <dd style="margin:4px 0 0 0;color:#475569">Yes. CourtControl stores everything in your browser's local storage. No internet connection is needed after the page loads.</dd>
+
+          <dt style="font-weight:600;margin-top:16px">Can I use it for tennis, not just pickleball?</dt>
+          <dd style="margin:4px 0 0 0;color:#475569">Absolutely. CourtControl works for any court sport with player rotations — pickleball, tennis, badminton, padel, you name it.</dd>
+
+          <dt style="font-weight:600;margin-top:16px">How many players can it handle?</dt>
+          <dd style="margin:4px 0 0 0;color:#475569">CourtControl supports up to 64 players and 16 courts per session, which covers the vast majority of open play and social events.</dd>
+
+          <dt style="font-weight:600;margin-top:16px">What is a "bye" in round robin?</dt>
+          <dd style="margin:4px 0 0 0;color:#475569">A bye means a player sits out for a round because there are more players than court spots. CourtControl distributes byes fairly so no one sits out more than others.</dd>
+
+          <dt style="font-weight:600;margin-top:16px">Can players join mid-session?</dt>
+          <dd style="margin:4px 0 0 0;color:#475569">Yes. Add new players at any time and generate the next round — CourtControl incorporates them automatically.</dd>
+
+          <dt style="font-weight:600;margin-top:16px">Does it track scores or rankings?</dt>
+          <dd style="margin:4px 0 0 0;color:#475569">CourtControl focuses on session management — rotations, courts, and timers. Score tracking and rankings are on the roadmap.</dd>
+
+          <dt style="font-weight:600;margin-top:16px">What's TV Display mode?</dt>
+          <dd style="margin:4px 0 0 0;color:#475569">TV Display mode shows the current round's court assignments in a large, easy-to-read format. Cast it to a TV or monitor at the courts so all players can see where they're playing.</dd>
+
+          <dt style="font-weight:600;margin-top:16px">Is my data private?</dt>
+          <dd style="margin:4px 0 0 0;color:#475569">Yes. All data stays in your browser. Nothing is sent to any server. If you clear your browser data, your sessions are gone — so export if you need a backup.</dd>
+
+          <dt style="font-weight:600;margin-top:16px">What devices does it work on?</dt>
+          <dd style="margin:4px 0 0 0;color:#475569">Any device with a modern browser — phone, tablet, laptop, or desktop. The interface is fully responsive.</dd>
+        </dl>
+
+        <footer style="margin-top:48px;padding-top:24px;border-top:1px solid #e2e8f0;text-align:center;color:#64748b;font-size:0.875rem">
+          <p>Free and open source. No account required. <a href="https://courtcontrol.pro/" style="color:#16a34a">Get started now →</a></p>
+        </footer>
+      </div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

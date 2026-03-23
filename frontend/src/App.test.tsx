@@ -28,7 +28,7 @@ describe('App Integration', () => {
     
     render(<App />);
     
-    expect(screen.getByText('Pickle Admin')).toBeInTheDocument();
+    expect(screen.getByText('CourtControl')).toBeInTheDocument();
 
     // Wait for async loadLeagues to settle
     await waitFor(() => {

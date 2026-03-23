@@ -22,8 +22,8 @@ function shuffle<T>(array: T[]): T[] {
 
 // ── Storage helpers ──────────────────────────────────────────────────────────
 
-const STORE_KEY = 'pickleadmin_data';
-const PLAYER_DIRECTORY_KEY = 'pickleadmin_player_directory';
+const STORE_KEY = 'courtcontrol_data';
+const PLAYER_DIRECTORY_KEY = 'courtcontrol_player_directory';
 const PLAYER_DIRECTORY_MAX = 5000;
 
 /** Persistent directory of all player names ever entered, for autocomplete. */
@@ -515,6 +515,29 @@ export const api = {
     }
     saveStore(store);
     return store.assignments.filter(a => a.roundId === roundId);
+  },
+
+  async updateScores(
+    roundId: string,
+    scores: Array<{ courtId: string; team1Score: number; team2Score: number }>
+  ): Promise<Assignment[]> {
+    log.api.info('updateScores — round', roundId, scores.length, 'courts');
+    const store = loadStore();
+    for (const s of scores) {
+      const existing = store.assignments.find(a => a.roundId === roundId && a.courtId === s.courtId);
+      if (existing) {
+        existing.team1Score = s.team1Score;
+        existing.team2Score = s.team2Score;
+      }
+    }
+    saveStore(store);
+    return store.assignments.filter(a => a.roundId === roundId);
+  },
+
+  async getAllAssignments(leagueId: string): Promise<Assignment[]> {
+    const store = loadStore();
+    const roundIds = new Set(store.rounds.filter(r => r.leagueId === leagueId).map(r => r.id));
+    return store.assignments.filter(a => roundIds.has(a.roundId));
   },
 
   // Dev tools

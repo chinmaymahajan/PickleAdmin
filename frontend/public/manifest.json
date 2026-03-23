@@ -1,0 +1,23 @@
+{
+  "name": "CourtControl",
+  "short_name": "CourtControl",
+  "description": "Free session manager for pickleball and tennis. Automate rotations, court assignments, and scheduling.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#16A34A",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "/pickleball_app_logo.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/pickleball_app_logo.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ],
+  "categories": ["sports", "utilities"]
+}

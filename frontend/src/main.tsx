@@ -10,10 +10,11 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <Sentry.ErrorBoundary
       fallback={({ error, resetError }) => (
-        <div style={{ padding: '2rem', fontFamily: 'system-ui' }}>
-          <h2>Something went wrong</h2>
-          <p style={{ color: '#666' }}>{error?.toString()}</p>
-          <button onClick={resetError} style={{ marginTop: '1rem', padding: '0.5rem 1rem' }}>
+        <div style={{ padding: '2rem', fontFamily: 'system-ui', maxWidth: '600px', margin: '0 auto' }}>
+          <h1 style={{ fontSize: '1.5rem' }}>Something went wrong</h1>
+          <p style={{ color: '#475569', margin: '8px 0 16px' }}>An unexpected error occurred. You can try again or reload the page.</p>
+          <pre style={{ background: '#f1f5f9', padding: '12px', borderRadius: '6px', fontSize: '0.85rem', overflow: 'auto', color: '#64748b' }}>{error?.toString()}</pre>
+          <button onClick={resetError} style={{ marginTop: '1rem', padding: '0.5rem 1rem', cursor: 'pointer' }}>
             Try Again
           </button>
         </div>

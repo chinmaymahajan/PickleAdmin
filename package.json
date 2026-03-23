@@ -1,7 +1,7 @@
 {
-  "name": "pickleball-league-manager",
+  "name": "courtcontrol",
   "version": "1.0.0",
-  "description": "Pickleball League Manager - Automate player assignments and team formation",
+  "description": "CourtControl - Session manager for pickleball and tennis",
   "private": true,
   "workspaces": [
     "frontend",

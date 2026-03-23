@@ -1,6 +1,6 @@
 import { api } from '../localStorageApi';
 
-const DIRECTORY_KEY = 'pickleadmin_player_directory';
+const DIRECTORY_KEY = 'courtcontrol_player_directory';
 
 describe('getPlayerDirectory', () => {
   beforeEach(() => {

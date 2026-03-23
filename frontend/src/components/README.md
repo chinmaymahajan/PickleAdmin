@@ -1,6 +1,6 @@
 # React UI Components
 
-This directory contains the React UI components for the Pickleball League Manager application.
+This directory contains the React UI components for the CourtControl application.
 
 ## Components
 

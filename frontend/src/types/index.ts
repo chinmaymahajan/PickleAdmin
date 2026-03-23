@@ -45,6 +45,8 @@ export interface Assignment {
   courtId: string;
   team1PlayerIds: string[];
   team2PlayerIds: string[];
+  team1Score?: number;
+  team2Score?: number;
   createdAt: Date;
 }
 

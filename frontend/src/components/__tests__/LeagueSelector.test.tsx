@@ -80,7 +80,7 @@ describe('LeagueSelector', () => {
       />
     );
 
-    expect(screen.getByText('Welcome to Pickle Admin')).toBeInTheDocument();
+    expect(screen.getByText('Welcome to CourtControl')).toBeInTheDocument();
     expect(screen.getByText('Start New Session')).toBeInTheDocument();
   });
 });

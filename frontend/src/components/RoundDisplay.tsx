@@ -15,8 +15,14 @@ interface RoundDisplayProps {
     team1PlayerIds: string[];
     team2PlayerIds: string[];
   }>) => Promise<void>;
+  onUpdateScores?: (scores: Array<{
+    courtId: string;
+    team1Score: number;
+    team2Score: number;
+  }>) => Promise<void>;
   byeCounts?: Record<string, number>;
   hideByePlayers?: boolean;
+  isManualMode?: boolean;
 }
 
 /**
@@ -32,18 +38,30 @@ const RoundDisplay: React.FC<RoundDisplayProps> = ({
   courts,
   players,
   onUpdateAssignments,
+  onUpdateScores,
   byeCounts = {},
-  hideByePlayers = false
+  hideByePlayers = false,
+  isManualMode = false
 }) => {
   const [editedAssignments, setEditedAssignments] = useState<Assignment[]>([]);
   const [isSaving, setIsSaving] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [dragData, setDragData] = useState<DragData | null>(null);
   const [dropTarget, setDropTarget] = useState<DropTarget | null>(null);
+  const [localScores, setLocalScores] = useState<Record<string, { team1: string; team2: string }>>({});
 
   useEffect(() => {
     setEditedAssignments(JSON.parse(JSON.stringify(assignments)));
     setHasUnsavedChanges(false);
+    // Initialize local scores from saved assignment scores
+    const scores: Record<string, { team1: string; team2: string }> = {};
+    for (const a of assignments) {
+      scores[a.courtId] = {
+        team1: a.team1Score != null ? String(a.team1Score) : '',
+        team2: a.team2Score != null ? String(a.team2Score) : '',
+      };
+    }
+    setLocalScores(scores);
   }, [assignments]);
 
   const handleDragStart = useCallback((data: DragData) => {
@@ -268,6 +286,36 @@ const RoundDisplay: React.FC<RoundDisplayProps> = ({
     setHasUnsavedChanges(false);
   };
 
+  const handleScoreChange = (courtId: string, team: 'team1' | 'team2', value: string) => {
+    // Allow empty string or non-negative integers
+    if (value !== '' && (!/^\d+$/.test(value) || Number(value) > 999)) return;
+    setLocalScores(prev => ({
+      ...prev,
+      [courtId]: { ...prev[courtId], [team]: value },
+    }));
+  };
+
+  const handleSaveScores = async () => {
+    if (!onUpdateScores) return;
+    const scores: Array<{ courtId: string; team1Score: number; team2Score: number }> = [];
+    for (const a of editedAssignments) {
+      const s = localScores[a.courtId];
+      if (s && s.team1 !== '' && s.team2 !== '') {
+        scores.push({
+          courtId: a.courtId,
+          team1Score: Number(s.team1),
+          team2Score: Number(s.team2),
+        });
+      }
+    }
+    if (scores.length === 0) return;
+    try {
+      await onUpdateScores(scores);
+    } catch (err) {
+      console.error('Failed to save scores:', err);
+    }
+  };
+
   const renderPlayerSlot = (
     assignment: Assignment,
     team: 'team1' | 'team2',
@@ -348,6 +396,41 @@ const RoundDisplay: React.FC<RoundDisplayProps> = ({
                     </ul>
                   </div>
                 </div>
+                {isManualMode && onUpdateScores && (
+                  <div className="score-inputs">
+                    <div className="score-input-group">
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        className={`score-input ${
+                          localScores[assignment.courtId]?.team1 !== '' && localScores[assignment.courtId]?.team2 !== '' 
+                            ? Number(localScores[assignment.courtId]?.team1 || 0) > Number(localScores[assignment.courtId]?.team2 || 0) ? 'winner' : '' 
+                            : ''
+                        }`}
+                        placeholder="—"
+                        value={localScores[assignment.courtId]?.team1 ?? ''}
+                        onChange={(e) => handleScoreChange(assignment.courtId, 'team1', e.target.value)}
+                        aria-label={`Team 1 score for ${getCourtIdentifier(assignment.courtId)}`}
+                      />
+                      <span className="score-separator">:</span>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        className={`score-input ${
+                          localScores[assignment.courtId]?.team1 !== '' && localScores[assignment.courtId]?.team2 !== '' 
+                            ? Number(localScores[assignment.courtId]?.team2 || 0) > Number(localScores[assignment.courtId]?.team1 || 0) ? 'winner' : '' 
+                            : ''
+                        }`}
+                        placeholder="—"
+                        value={localScores[assignment.courtId]?.team2 ?? ''}
+                        onChange={(e) => handleScoreChange(assignment.courtId, 'team2', e.target.value)}
+                        aria-label={`Team 2 score for ${getCourtIdentifier(assignment.courtId)}`}
+                      />
+                    </div>
+                  </div>
+                )}
                 {warnings && (
                   <div className="court-warnings">
                     {warnings.map((w, i) => (
@@ -412,6 +495,23 @@ const RoundDisplay: React.FC<RoundDisplayProps> = ({
           </ul>
         </div>
       )}
+
+      {isManualMode && onUpdateScores && (() => {
+        const hasAnyScore = Object.values(localScores).some(s => s.team1 !== '' || s.team2 !== '');
+        const scoresChanged = editedAssignments.some(a => {
+          const s = localScores[a.courtId];
+          if (!s) return false;
+          const savedT1 = a.team1Score != null ? String(a.team1Score) : '';
+          const savedT2 = a.team2Score != null ? String(a.team2Score) : '';
+          return s.team1 !== savedT1 || s.team2 !== savedT2;
+        });
+        if (!hasAnyScore || !scoresChanged) return null;
+        return (
+          <div className="score-save-bar">
+            <button className="save-button" onClick={handleSaveScores}>Save Scores</button>
+          </div>
+        );
+      })()}
     </div>
   );
 };

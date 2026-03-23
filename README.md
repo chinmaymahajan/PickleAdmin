@@ -1,14 +1,14 @@
-# Pickle Admin
+# CourtControl
 
-Free, open-source pickleball session manager. No server, no sign-up, no cost. Your data never leaves your device.
+Free, open-source session manager for pickleball and tennis. No server, no sign-up, no cost. Your data never leaves your device.
 
-**[Launch App →](https://chinmaymahajan.github.io/PickleAdmin/)**
+**[Launch App →](https://courtcontrol.pro/)**
 
 ---
 
-## Why Pickle Admin?
+## Why CourtControl?
 
-Running pickleball sessions means juggling player rotations, court assignments, timers, and fairness — all while people are waiting to play. Pickle Admin handles the logistics so you can focus on the games.
+Running pickleball and tennis sessions means juggling player rotations, court assignments, timers, and fairness — all while people are waiting to play. CourtControl handles the logistics so you can focus on the games.
 
 ---
 
@@ -84,7 +84,7 @@ All data stays on your device. Nothing is transmitted to any server. You own you
 
 The app is deployed and ready to use:
 
-**[https://chinmaymahajan.github.io/PickleAdmin/](https://chinmaymahajan.github.io/PickleAdmin/)**
+**[https://courtcontrol.pro/](https://courtcontrol.pro/)**
 
 ### Run Locally
 

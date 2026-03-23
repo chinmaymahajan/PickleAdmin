@@ -7,4 +7,5 @@ export { default as RoundGenerator } from './RoundGenerator';
 export { default as FormatSelector } from './FormatSelector';
 export { default as DevTools } from './DevTools';
 export { default as TVDisplay } from './TVDisplay';
+export { default as Leaderboard } from './Leaderboard';
 

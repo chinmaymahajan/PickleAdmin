@@ -8,7 +8,8 @@ import {
   RoundNavigator,
   RoundGenerator,
   DevTools,
-  TVDisplay
+  TVDisplay,
+  Leaderboard
 } from './components';
 // import OnboardingTour, { STORAGE_KEY as TOUR_STORAGE_KEY } from './components/OnboardingTour';
 import { api } from './api/client';
@@ -32,6 +33,7 @@ function App() {
   const [autoActiveAssignments, setAutoActiveAssignments] = useState<Assignment[]>([]);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [byeCounts, setByeCounts] = useState<Record<string, number>>({});
+  const [allLeagueAssignments, setAllLeagueAssignments] = useState<Assignment[]>([]);
   const [nextRound, setNextRound] = useState<Round | null>(null);
   const [nextAssignments, setNextAssignments] = useState<Assignment[]>([]);
   const [loading, setLoading] = useState(false);
@@ -637,6 +639,9 @@ function App() {
       log.app.debug('Assignments loaded — round', roundId, data.length, 'assignments');
       if (selectedLeagueId) {
         setByeCounts(await api.getByeCounts(selectedLeagueId));
+        try {
+          setAllLeagueAssignments(await api.getAllAssignments(selectedLeagueId));
+        } catch { setAllLeagueAssignments([]); }
       }
     }
     catch (err: any) {
@@ -678,6 +683,7 @@ function App() {
       setCurrentRound(null);
       setAutoActiveRound(null);
       setAssignments([]);
+      setAllLeagueAssignments([]);
       setAutoActiveAssignments([]);
       setNextRound(null);
       setNextAssignments([]);
@@ -962,6 +968,27 @@ function App() {
     } finally { setLoading(false); }
   };
 
+  const handleUpdateScores = async (scores: Array<{
+    courtId: string;
+    team1Score: number;
+    team2Score: number;
+  }>) => {
+    if (!currentRound || !selectedLeagueId) return;
+    log.app.info('handleUpdateScores — round', currentRound.roundNumber, scores.length, 'courts');
+    setError(null);
+    try {
+      const updatedAssignments = await api.updateScores(currentRound.id, scores);
+      setAssignments(updatedAssignments);
+      try {
+        setAllLeagueAssignments(await api.getAllAssignments(selectedLeagueId));
+      } catch { /* ignore */ }
+      setSuccessMessage('Scores saved');
+    } catch (err: any) {
+      log.app.error('Failed to save scores', err);
+      setError(err.message || 'Failed to save scores');
+    }
+  };
+
   const handleSeedMockData = async () => {
     log.dev.info('handleSeedMockData — seeding mock data');
     setError(null);
@@ -1049,7 +1076,7 @@ function App() {
   return (
     <div className={`app ${darkMode ? 'dark' : ''} ${colorTheme === 'kinetic' ? 'theme-kinetic' : ''}`}>
       <header>
-        <h1><a href="#" className="logo-link" onClick={(e) => { e.preventDefault(); handleSelectLeague(''); }}><img src={appLogo} alt="Pickle Admin" width={28} height={28} style={{ verticalAlign: 'middle', marginRight: 8, borderRadius: 6 }} /> Pickle Admin</a></h1>
+        <h1><a href="#" className="logo-link" onClick={(e) => { e.preventDefault(); handleSelectLeague(''); }}><img src={appLogo} alt="CourtControl logo" width={28} height={28} style={{ verticalAlign: 'middle', marginRight: 8, borderRadius: 6 }} /> CourtControl</a></h1>
         <div className="header-actions">
           <select
             className="theme-select"
@@ -1379,6 +1406,7 @@ function App() {
                           await api.clearRounds(selectedLeagueId);
                           setRounds([]);
                           setAssignments([]);
+                          setAllLeagueAssignments([]);
                           setAutoActiveRound(null);
                           setTimerEndTime(null);
                           setIsOnBreak(false);
@@ -1479,9 +1507,18 @@ function App() {
                       courts={courts}
                       players={players}
                       onUpdateAssignments={handleUpdateAssignments}
+                      onUpdateScores={sessionMode === 'manual' ? handleUpdateScores : undefined}
                       byeCounts={byeCounts}
                       hideByePlayers={false}
+                      isManualMode={sessionMode === 'manual'}
                     />
+
+                    {sessionMode === 'manual' && (
+                      <Leaderboard
+                        players={players}
+                        allAssignments={allLeagueAssignments}
+                      />
+                    )}
                   </>
                 )}
               </section>

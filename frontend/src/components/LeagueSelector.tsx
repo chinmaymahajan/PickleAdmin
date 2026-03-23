@@ -126,10 +126,10 @@ const LeagueSelector: React.FC<LeagueSelectorProps> = ({
     return (
       <div className="landing-page">
         <div className="landing-hero">
-          <div className="landing-icon"><img src={appLogo} alt="Pickle Admin" width={64} height={64} style={{ borderRadius: 12 }} /></div>
-          <h1>Welcome to Pickle Admin</h1>
+          <div className="landing-icon"><img src={appLogo} alt="CourtControl logo" width={64} height={64} style={{ borderRadius: 12 }} /></div>
+          <h1>Welcome to CourtControl</h1>
           <p className="landing-subtitle">
-            Run pickleball sessions, ladders and open play in seconds.
+            Run pickleball and tennis sessions, ladders and open play in seconds.
           </p>
         </div>
         {showCreateForm ? createForm : (
