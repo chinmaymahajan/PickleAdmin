@@ -1534,7 +1534,7 @@ li:last-child {
 }
 
 .court-assignment h3 {
-  font-size: 0.8125rem;
+  font-size: 1.375rem !important;
   font-weight: 700;
   color: var(--text-accent);
   margin-bottom: 0.5rem;
@@ -1574,9 +1574,10 @@ li:last-child {
    Player Slots & Typeahead
    ============================================ */
 .player-slot {
-  padding: 0.1875rem 0;
+  padding: 0.25rem 0;
   margin-bottom: 0;
   border-bottom: none;
+  font-size: 1.25rem !important;
 }
 
 .player-slot:hover {
@@ -1590,8 +1591,8 @@ li:last-child {
 
 .player-typeahead-input {
   width: 100%;
-  padding: 0.3125rem 0.5rem;
-  font-size: 0.8125rem;
+  padding: 0.5rem 0.625rem;
+  font-size: 1.25rem !important;
   font-family: inherit;
   border: 1px solid var(--border-input);
   border-radius: var(--radius-sm);
@@ -4030,7 +4031,7 @@ li:hover .remove-btn {
 /* Court header — large court number */
 .theme-kinetic .court-assignment h3 {
   font-family: 'Space Grotesk', sans-serif;
-  font-size: 1.25rem;
+  font-size: 1.375rem;
   font-weight: 700;
   color: #1A1A2E;
   text-transform: uppercase;
@@ -4049,7 +4050,7 @@ li:hover .remove-btn {
 }
 
 .theme-kinetic .team h4 {
-  font-size: 0.5625rem;
+  font-size: 0.75rem;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: #7A7A99;
@@ -4069,8 +4070,10 @@ li:hover .remove-btn {
 .theme-kinetic .player-typeahead-input {
   background: #ffffff;
   border-color: #D4E6D8;
+  font-size: 1.1875rem;
   font-weight: 500;
   color: #1A1A2E;
+  padding: 0.5rem 0.625rem;
 }
 
 .theme-kinetic .player-typeahead-input:focus {
@@ -4432,6 +4435,7 @@ li:hover .remove-btn {
 .leaderboard-table td.player-name {
   text-align: left;
   font-weight: 500;
+  font-size: 1.0625rem;
 }
 
 .leaderboard-table td.rank {

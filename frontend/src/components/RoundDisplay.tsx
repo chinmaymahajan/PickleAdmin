@@ -288,7 +288,7 @@ const RoundDisplay: React.FC<RoundDisplayProps> = ({
 
   const handleScoreChange = (courtId: string, team: 'team1' | 'team2', value: string) => {
     // Allow empty string or non-negative integers
-    if (value !== '' && (!/^\d+$/.test(value) || Number(value) > 999)) return;
+    if (value !== '' && (!/^\d+$/.test(value) || Number(value) > 25)) return;
     setLocalScores(prev => ({
       ...prev,
       [courtId]: { ...prev[courtId], [team]: value },

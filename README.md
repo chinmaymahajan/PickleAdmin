@@ -2,7 +2,7 @@
 
 Free, open-source session manager for pickleball and tennis. No server, no sign-up, no cost. Your data never leaves your device.
 
-**[Launch App →](https://courtcontrol.pro/)**
+**[Launch App →](https://chinmaymahajan.github.io/PickleAdmin/)**
 
 ---
 
@@ -84,7 +84,7 @@ All data stays on your device. Nothing is transmitted to any server. You own you
 
 The app is deployed and ready to use:
 
-**[https://courtcontrol.pro/](https://courtcontrol.pro/)**
+**[https://chinmaymahajan.github.io/PickleAdmin/](https://chinmaymahajan.github.io/PickleAdmin/)**
 
 ### Run Locally
 
