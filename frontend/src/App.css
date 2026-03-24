@@ -4499,3 +4499,66 @@ li:hover .remove-btn {
 .dark .leaderboard-table td {
   border-color: var(--border, #1e293b);
 }
+
+/* ============================================
+   Export Session Button
+   ============================================ */
+.export-btn {
+  padding: 0.375rem 0.75rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  font-family: inherit;
+  color: var(--text-primary, #1e293b);
+  background: var(--bg-card, #ffffff);
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: var(--radius-md, 8px);
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+
+.export-btn:hover {
+  background: var(--accent, #4f46e5);
+  color: #ffffff;
+  border-color: var(--accent, #4f46e5);
+}
+
+.export-dropdown-wrapper {
+  position: relative;
+}
+
+.export-dropdown {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 4px;
+  background: var(--bg-card, #ffffff);
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: var(--radius-md, 8px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  z-index: 20;
+  min-width: 140px;
+  overflow: hidden;
+}
+
+.export-dropdown button {
+  display: block;
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.8125rem;
+  font-family: inherit;
+  text-align: left;
+  background: none;
+  border: none;
+  color: var(--text-primary, #1e293b);
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.export-dropdown button:hover {
+  background: var(--bg-hover, #f1f5f9);
+}
+
+.export-dropdown button + button {
+  border-top: 1px solid var(--border, #e2e8f0);
+}

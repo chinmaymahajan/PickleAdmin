@@ -18,6 +18,7 @@ import CourtIcon from './components/CourtIcon';
 import appLogo from '/pickleball_app_logo.png';
 import { playBuzzer, suppressBuzzerFor, warmUpAudio } from './utils/sound';
 import log from './utils/logger';
+import { exportSessionXLSX } from './utils/exportSession';
 
 
 function App() {
@@ -1488,6 +1489,20 @@ function App() {
                       <button className="tv-mode-btn" onClick={() => setTvMode(true)}>
                         📺 TV Mode
                       </button>
+                      {sessionMode === 'manual' && allLeagueAssignments.some(a => a.team1Score != null) && selectedLeague && (
+                        <button
+                          className="export-btn"
+                          onClick={() => exportSessionXLSX({
+                            leagueName: selectedLeague.name,
+                            rounds,
+                            assignments: allLeagueAssignments,
+                            courts,
+                            players,
+                          })}
+                        >
+                          📥 Export
+                        </button>
+                      )}
                     </div>
 
                     {sessionMode === 'manual' && !startedRounds.has(currentRound.roundNumber) && (
