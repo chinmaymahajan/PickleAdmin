@@ -62,6 +62,10 @@ if (typeof window !== 'undefined') {
 }
 
 export function playBuzzer(force = false) {
+  // Buzzer disabled — causing phantom buzzer issues, will rethink later
+  console.log('[Buzzer] playBuzzer called but DISABLED — force:', force);
+  return;
+  /*
   console.log('[Buzzer] playBuzzer called — force:', force, 'suppressed:', Date.now() < _buzzerSuppressedUntil);
   try {
     if (!force && Date.now() < _buzzerSuppressedUntil) {
@@ -81,4 +85,5 @@ export function playBuzzer(force = false) {
   } catch (err) {
     console.error('[Buzzer] playBuzzer — exception:', err);
   }
+  */
 }

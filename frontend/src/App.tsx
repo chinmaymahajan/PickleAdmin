@@ -1512,9 +1512,11 @@ function App() {
                       <button className="tv-mode-btn" onClick={() => setTvMode(true)}>
                         📺 TV Mode
                       </button>
+                      {/* Manual buzzer button commented out — causing phantom buzzer issues, will rethink later
                       <button className="buzzer-btn" onClick={() => playBuzzer(true)}>
                         🔔 Buzzer
                       </button>
+                      */}
                       {sessionMode === 'manual' && rounds.length > 0 && selectedLeague && (
                         <button
                           className="export-btn"
