@@ -49,15 +49,46 @@ export class AssignmentService {
   }
 
   /**
+   * Build an opponent history map from all previous assignments.
+   * Key: canonical pair key "idA_idB" (lexicographically sorted)
+   * Value: number of rounds the pair was on opposing teams
+   */
+  buildOpponentHistory(
+    allPreviousAssignments: Assignment[] | undefined
+  ): Map<string, number> {
+    const history = new Map<string, number>();
+
+    if (!allPreviousAssignments || allPreviousAssignments.length === 0) {
+      return history;
+    }
+
+    for (const assignment of allPreviousAssignments) {
+      const t1 = assignment.team1PlayerIds;
+      const t2 = assignment.team2PlayerIds;
+      for (const p1 of t1) {
+        for (const p2 of t2) {
+          const key = this.getPartnerKey(p1, p2);
+          history.set(key, (history.get(key) ?? 0) + 1);
+        }
+      }
+    }
+
+    return history;
+  }
+
+  /**
    * Score a candidate split by summing partnership counts for all
-   * within-team pairs. Lower is better.
+   * within-team pairs AND opponent counts for all cross-team pairs.
+   * Lower is better. Opponent repeats are weighted equally with partner repeats.
    */
   scoreSplit(
     team1Ids: string[],
     team2Ids: string[],
-    partnershipHistory: Map<string, number>
+    partnershipHistory: Map<string, number>,
+    opponentHistory?: Map<string, number>
   ): number {
     let score = 0;
+    // Penalize repeat partners (same team)
     for (let i = 0; i < team1Ids.length; i++) {
       for (let j = i + 1; j < team1Ids.length; j++) {
         score += partnershipHistory.get(this.getPartnerKey(team1Ids[i], team1Ids[j])) ?? 0;
@@ -66,6 +97,14 @@ export class AssignmentService {
     for (let i = 0; i < team2Ids.length; i++) {
       for (let j = i + 1; j < team2Ids.length; j++) {
         score += partnershipHistory.get(this.getPartnerKey(team2Ids[i], team2Ids[j])) ?? 0;
+      }
+    }
+    // Penalize repeat opponents (cross-team)
+    if (opponentHistory && opponentHistory.size > 0) {
+      for (const p1 of team1Ids) {
+        for (const p2 of team2Ids) {
+          score += opponentHistory.get(this.getPartnerKey(p1, p2)) ?? 0;
+        }
       }
     }
     return score;
@@ -85,7 +124,8 @@ export class AssignmentService {
    */
   optimizeTeamSplit(
     courtPlayers: Player[],
-    partnershipHistory: Map<string, number>
+    partnershipHistory: Map<string, number>,
+    opponentHistory?: Map<string, number>
   ): [string[], string[]] {
     const ids = courtPlayers.map(p => p.id);
     const [a, b, c, d] = ids;
@@ -99,7 +139,7 @@ export class AssignmentService {
     const scored = splits.map(([t1, t2]) => ({
       team1: t1,
       team2: t2,
-      score: this.scoreSplit(t1, t2, partnershipHistory),
+      score: this.scoreSplit(t1, t2, partnershipHistory, opponentHistory),
     }));
 
     const minScore = Math.min(...scored.map(s => s.score));
@@ -168,6 +208,9 @@ export class AssignmentService {
           // Build partnership history from all previous assignments
           const partnershipHistoryMap = this.buildPartnershipHistory(allPreviousAssignments);
 
+          // Build opponent history from all previous assignments
+          const opponentHistoryMap = this.buildOpponentHistory(allPreviousAssignments);
+
           const maxRetries = 10;
           let attempts = 0;
           let assignments: Assignment[] = [];
@@ -180,7 +223,8 @@ export class AssignmentService {
               roundId,
               playersPerCourt,
               effectiveByeCountMap,
-              partnershipHistoryMap
+              partnershipHistoryMap,
+              opponentHistoryMap
             );
 
             // If no previous assignments, we're done
@@ -219,7 +263,8 @@ export class AssignmentService {
           roundId: string,
           playersPerCourt: number,
           byeCountMap: Map<string, number> = new Map(),
-          partnershipHistoryMap: Map<string, number> = new Map()
+          partnershipHistoryMap: Map<string, number> = new Map(),
+          opponentHistoryMap: Map<string, number> = new Map()
         ): Assignment[] {
           const playersNeeded = Math.min(players.length, courts.length * playersPerCourt);
           // Number of full courts we can fill
@@ -246,8 +291,41 @@ export class AssignmentService {
           // Take exactly enough players to fill full courts — priority players first
           const playersToAssign = ordered.slice(0, slotsToFill);
 
-          // Shuffle the selected players so high-bye players aren't always on the same courts
-          const finalOrder = shuffle([...playersToAssign]);
+          // Try multiple shuffles and pick the one with the lowest opponent+partner repeat score
+          // for the court groupings (which 4 players end up on the same court).
+          const groupingAttempts = Math.min(20, Math.max(5, players.length));
+          let bestGrouping: Player[] = shuffle([...playersToAssign]);
+          let bestGroupingScore = Infinity;
+
+          for (let attempt = 0; attempt < groupingAttempts; attempt++) {
+            const candidate = shuffle([...playersToAssign]);
+            let groupScore = 0;
+
+            // Score each court group of 4
+            for (let i = 0; i < candidate.length; i += playersPerCourt) {
+              const group = candidate.slice(i, i + playersPerCourt);
+              if (group.length < playersPerCourt) break;
+              const ids = group.map(p => p.id);
+
+              // Sum opponent history for all pairs in this group
+              // (they'll be opponents or partners — either way we want variety)
+              for (let a = 0; a < ids.length; a++) {
+                for (let b = a + 1; b < ids.length; b++) {
+                  const key = this.getPartnerKey(ids[a], ids[b]);
+                  groupScore += (opponentHistoryMap.get(key) ?? 0);
+                  groupScore += (partnershipHistoryMap.get(key) ?? 0);
+                }
+              }
+            }
+
+            if (groupScore < bestGroupingScore) {
+              bestGroupingScore = groupScore;
+              bestGrouping = candidate;
+              if (groupScore === 0) break; // Perfect — no repeats at all
+            }
+          }
+
+          const finalOrder = bestGrouping;
 
           // Shuffle courts for variety
           const shuffledCourts = shuffle([...courts]);
@@ -266,8 +344,8 @@ export class AssignmentService {
               let team2Ids: string[];
 
               if (partnershipHistoryMap.size > 0 && playersPerCourt === 4) {
-                // Use partnership-aware team splitting
-                [team1Ids, team2Ids] = this.optimizeTeamSplit(courtPlayers, partnershipHistoryMap);
+                // Use partnership-aware and opponent-aware team splitting
+                [team1Ids, team2Ids] = this.optimizeTeamSplit(courtPlayers, partnershipHistoryMap, opponentHistoryMap);
               } else {
                 // Default: simple first-half/second-half split
                 const teamSize = playersPerCourt / 2;

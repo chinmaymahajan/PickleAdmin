@@ -359,7 +359,7 @@ function App() {
         if (simTimerEnd > Date.now()) break;
       } else {
         // Round just ended
-        if (!buzzerPlayed) { playBuzzer(); buzzerPlayed = true; }
+        if (!buzzerPlayed && simAutoActive) { playBuzzer(); buzzerPlayed = true; }
         if (!simAutoActive) break;
         const idx = curRounds.findIndex(r => r.id === simAutoActive!.id);
         const nextAutoRound = idx >= 0 && idx < curRounds.length - 1
@@ -567,11 +567,27 @@ function App() {
           setAutoActiveRound(cached.autoActiveRound);
           setTimerEndTime(null);
           setIsOnBreak(cached.isOnBreak);
+          // In manual mode, fire the buzzer ONLY if a round was actually active
+          // and the timer expired recently (not stale from a completed session)
+          if (sessionMode === 'manual' && cached.autoActiveRound && cached.timerEndTime) {
+            const staleness = Date.now() - cached.timerEndTime;
+            if (staleness <= roundDurationMinutes * 60 * 1000) {
+              log.timer.info('Manual timer expired while on another league — buzzer fired on restore');
+              playBuzzer();
+            } else {
+              log.timer.info('Manual timer expired too long ago on another league — skipping buzzer');
+            }
+          }
         } else {
           setAutoActiveRound(cached.autoActiveRound);
           setTimerEndTime(cached.timerEndTime);
           setTimeRemaining(cached.timerEndTime !== null ? Math.max(0, cached.timerEndTime - Date.now()) : 0);
           setIsOnBreak(cached.isOnBreak);
+          // Allow manual buzzer to fire when this restored timer expires
+          if (sessionMode === 'manual' && cached.timerEndTime !== null) {
+            manualBuzzerFiredRef.current = false;
+            timerStartedAtRef.current = cached.timerEndTime - roundDurationMinutes * 60 * 1000;
+          }
         }
         setTimerHidden(cached.timerHidden);
         setActiveTab(cached.activeTab);
@@ -596,12 +612,18 @@ function App() {
               setTimerEndTime(endTime);
               setTimeRemaining(remaining);
             } else {
-              // Timer expired while away — fire the buzzer now, then clear
+              // Timer expired while away — only fire buzzer if it expired recently
+              // (within round duration). Stale timers from completed rounds should not buzz.
               localStorage.removeItem(`manualTimerEndTime_${leagueId}`);
               setTimerEndTime(null);
               setTimeRemaining(0);
-              log.timer.info('Manual timer expired while away — buzzer fired on restore');
-              playBuzzer();
+              const staleness = Date.now() - endTime;
+              if (staleness <= roundDurationMinutes * 60 * 1000) {
+                log.timer.info('Manual timer expired while away — buzzer fired on restore');
+                playBuzzer();
+              } else {
+                log.timer.info('Manual timer expired too long ago — skipping buzzer (stale by', staleness, 'ms)');
+              }
             }
           } else {
             setTimerEndTime(null);
@@ -1065,6 +1087,7 @@ function App() {
       setPendingModeSwitch(null);
       setActiveTab('setup');
       lastHandledTimerRef.current = null;
+      clearSessionState(selectedLeagueId);
       setSuccessMessage(`Switched to ${pendingModeSwitch} mode — session reset`);
     } catch (err: any) {
       log.app.error('Failed to switch mode', err);
@@ -1489,7 +1512,10 @@ function App() {
                       <button className="tv-mode-btn" onClick={() => setTvMode(true)}>
                         📺 TV Mode
                       </button>
-                      {sessionMode === 'manual' && allLeagueAssignments.some(a => a.team1Score != null) && selectedLeague && (
+                      <button className="buzzer-btn" onClick={() => playBuzzer(true)}>
+                        🔔 Buzzer
+                      </button>
+                      {sessionMode === 'manual' && allLeagueAssignments?.some(a => a.team1Score != null) && selectedLeague && (
                         <button
                           className="export-btn"
                           onClick={() => exportSessionXLSX({

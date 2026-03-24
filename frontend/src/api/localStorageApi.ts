@@ -104,7 +104,28 @@ export function buildPartnershipHistory(allPreviousAssignments: Assignment[] | u
   return history;
 }
 
-export function scoreSplit(team1Ids: string[], team2Ids: string[], partnershipHistory: Map<string, number>): number {
+export function buildOpponentHistory(allPreviousAssignments: Assignment[] | undefined): Map<string, number> {
+  const history = new Map<string, number>();
+  if (!allPreviousAssignments || allPreviousAssignments.length === 0) return history;
+  for (const assignment of allPreviousAssignments) {
+    const t1 = assignment.team1PlayerIds;
+    const t2 = assignment.team2PlayerIds;
+    for (const p1 of t1) {
+      for (const p2 of t2) {
+        const key = getPartnerKey(p1, p2);
+        history.set(key, (history.get(key) ?? 0) + 1);
+      }
+    }
+  }
+  return history;
+}
+
+export function scoreSplit(
+  team1Ids: string[],
+  team2Ids: string[],
+  partnershipHistory: Map<string, number>,
+  opponentHistory?: Map<string, number>
+): number {
   let score = 0;
   for (let i = 0; i < team1Ids.length; i++) {
     for (let j = i + 1; j < team1Ids.length; j++) {
@@ -116,10 +137,21 @@ export function scoreSplit(team1Ids: string[], team2Ids: string[], partnershipHi
       score += partnershipHistory.get(getPartnerKey(team2Ids[i], team2Ids[j])) ?? 0;
     }
   }
+  if (opponentHistory && opponentHistory.size > 0) {
+    for (const p1 of team1Ids) {
+      for (const p2 of team2Ids) {
+        score += opponentHistory.get(getPartnerKey(p1, p2)) ?? 0;
+      }
+    }
+  }
   return score;
 }
 
-export function optimizeTeamSplit(courtPlayers: Player[], partnershipHistory: Map<string, number>): [string[], string[]] {
+export function optimizeTeamSplit(
+  courtPlayers: Player[],
+  partnershipHistory: Map<string, number>,
+  opponentHistory?: Map<string, number>
+): [string[], string[]] {
   const ids = courtPlayers.map(p => p.id);
   const [a, b, c, d] = ids;
   const splits: [string[], string[]][] = [
@@ -128,7 +160,7 @@ export function optimizeTeamSplit(courtPlayers: Player[], partnershipHistory: Ma
     [[a, d], [b, c]],
   ];
   const scored = splits.map(([t1, t2]) => ({
-    team1: t1, team2: t2, score: scoreSplit(t1, t2, partnershipHistory),
+    team1: t1, team2: t2, score: scoreSplit(t1, t2, partnershipHistory, opponentHistory),
   }));
   const minScore = Math.min(...scored.map(s => s.score));
   const best = scored.filter(s => s.score === minScore);
@@ -144,7 +176,8 @@ function createAssignments(
   roundId: string,
   playersPerCourt: number,
   byeCountMap: Map<string, number>,
-  partnershipHistoryMap: Map<string, number> = new Map()
+  partnershipHistoryMap: Map<string, number> = new Map(),
+  opponentHistoryMap: Map<string, number> = new Map()
 ): Assignment[] {
   const playersNeeded = Math.min(players.length, courts.length * playersPerCourt);
   const fullCourts = Math.floor(playersNeeded / playersPerCourt);
@@ -166,7 +199,37 @@ function createAssignments(
   }
 
   const playersToAssign = ordered.slice(0, slotsToFill);
-  const finalOrder = shuffle(playersToAssign);
+
+  // Try multiple shuffles and pick the one with the lowest opponent+partner repeat score
+  const groupingAttempts = Math.min(20, Math.max(5, players.length));
+  let bestGrouping: Player[] = shuffle([...playersToAssign]);
+  let bestGroupingScore = Infinity;
+
+  for (let attempt = 0; attempt < groupingAttempts; attempt++) {
+    const candidate = shuffle([...playersToAssign]);
+    let groupScore = 0;
+
+    for (let i = 0; i < candidate.length; i += playersPerCourt) {
+      const group = candidate.slice(i, i + playersPerCourt);
+      if (group.length < playersPerCourt) break;
+      const ids = group.map(p => p.id);
+      for (let a = 0; a < ids.length; a++) {
+        for (let b = a + 1; b < ids.length; b++) {
+          const key = getPartnerKey(ids[a], ids[b]);
+          groupScore += (opponentHistoryMap.get(key) ?? 0);
+          groupScore += (partnershipHistoryMap.get(key) ?? 0);
+        }
+      }
+    }
+
+    if (groupScore < bestGroupingScore) {
+      bestGroupingScore = groupScore;
+      bestGrouping = candidate;
+      if (groupScore === 0) break;
+    }
+  }
+
+  const finalOrder = bestGrouping;
   const shuffledCourts = shuffle([...courts]);
 
   const assignments: Assignment[] = [];
@@ -179,7 +242,7 @@ function createAssignments(
       let team2Ids: string[];
 
       if (partnershipHistoryMap.size > 0 && playersPerCourt === 4) {
-        [team1Ids, team2Ids] = optimizeTeamSplit(cp, partnershipHistoryMap);
+        [team1Ids, team2Ids] = optimizeTeamSplit(cp, partnershipHistoryMap, opponentHistoryMap);
       } else {
         const half = playersPerCourt / 2;
         team1Ids = cp.slice(0, half).map(p => p.id);
@@ -225,10 +288,11 @@ function generateAssignments(
   allPreviousAssignments?: Assignment[]
 ): Assignment[] {
   const partnershipHistoryMap = buildPartnershipHistory(allPreviousAssignments);
+  const opponentHistoryMap = buildOpponentHistory(allPreviousAssignments);
   let attempts = 0;
   let assignments: Assignment[] = [];
   while (attempts < 10) {
-    assignments = createAssignments(players, courts, roundId, 4, byeCountMap, partnershipHistoryMap);
+    assignments = createAssignments(players, courts, roundId, 4, byeCountMap, partnershipHistoryMap, opponentHistoryMap);
     if (!previousAssignments || previousAssignments.length === 0) break;
     if (!areTeamCompositionsIdentical(assignments, previousAssignments)) break;
     attempts++;
