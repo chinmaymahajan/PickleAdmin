@@ -75,7 +75,7 @@ const DevTools: React.FC<DevToolsProps> = ({ onSeedData, onClearData }) => {
             </button>
           </div>
           <div className="dev-tools-info">
-            <p><strong>Seed Mock Data:</strong> Creates a test league with 26 players and 3 courts</p>
+            <p><strong>Seed Mock Data:</strong> Creates a test league with 27 players and 7 courts</p>
             <p><strong>Clear All Data:</strong> Removes all leagues, players, courts, rounds, and assignments</p>
           </div>
         </div>

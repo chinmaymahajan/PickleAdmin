@@ -27,6 +27,23 @@ function mkAssignment(
   };
 }
 
+// Real player names from Open Play - DUPR league
+const DUPR_PLAYERS = [
+  'Aimee Crant Oksa', 'Anand Subramani', 'Angela Evans', 'Anthony Calamusa',
+  'Barbara OConnor', 'Bob Howard', 'Chairmaine Ng', 'Chinmay Mahajan',
+  'Dawne MC', 'Dennis Clarke', 'Diane Cuce', 'Douglas Sr. Fallon',
+  'Gannon Meyer', 'John F', 'Joseph Altomonte', 'Katie Workman',
+  'Michael Lacqua', 'Mike Vidal', 'Morgan Biancamano', 'Paul Capaldo',
+  'Paul Kelahan', 'Ram seridana', 'Sebastian Filipkowski', 'Shiba M',
+  'Vera Koshkina', 'Xiaomei Yin', 'Yan Guo',
+];
+
+// Real court names from the venue
+const DUPR_COURTS = [
+  'Court #5', 'Court #6', 'Court #8', 'Court #9',
+  'Court #11', 'Court #12', 'Court #13',
+];
+
 describe('Opponent Uniqueness - Frontend', () => {
   describe('buildOpponentHistory', () => {
     it('returns empty map for undefined input', () => {
@@ -38,7 +55,7 @@ describe('Opponent Uniqueness - Frontend', () => {
     });
 
     it('counts cross-team pairs as opponents', () => {
-      const assignments = [mkAssignment('r1', 'c1', ['A', 'B'], ['C', 'D'])];
+      const assignments = [mkAssignment('r1', 'c5', ['A', 'B'], ['C', 'D'])];
       const history = buildOpponentHistory(assignments);
 
       expect(history.get(getPartnerKey('A', 'C'))).toBe(1);
@@ -49,7 +66,7 @@ describe('Opponent Uniqueness - Frontend', () => {
     });
 
     it('does NOT count within-team pairs as opponents', () => {
-      const assignments = [mkAssignment('r1', 'c1', ['A', 'B'], ['C', 'D'])];
+      const assignments = [mkAssignment('r1', 'c5', ['A', 'B'], ['C', 'D'])];
       const history = buildOpponentHistory(assignments);
 
       expect(history.has(getPartnerKey('A', 'B'))).toBe(false);
@@ -58,8 +75,8 @@ describe('Opponent Uniqueness - Frontend', () => {
 
     it('accumulates opponent counts across rounds', () => {
       const assignments = [
-        mkAssignment('r1', 'c1', ['A', 'B'], ['C', 'D']),
-        mkAssignment('r2', 'c1', ['A', 'B'], ['C', 'D']),
+        mkAssignment('r1', 'c5', ['A', 'B'], ['C', 'D']),
+        mkAssignment('r2', 'c5', ['A', 'B'], ['C', 'D']),
       ];
       const history = buildOpponentHistory(assignments);
 
@@ -69,17 +86,15 @@ describe('Opponent Uniqueness - Frontend', () => {
 
     it('tracks different opponent pairings across rounds', () => {
       const assignments = [
-        mkAssignment('r1', 'c1', ['A', 'B'], ['C', 'D']),
-        mkAssignment('r2', 'c1', ['A', 'C'], ['B', 'D']),
+        mkAssignment('r1', 'c5', ['A', 'B'], ['C', 'D']),
+        mkAssignment('r2', 'c5', ['A', 'C'], ['B', 'D']),
       ];
       const history = buildOpponentHistory(assignments);
 
-      // Round 1: A-C, A-D, B-C, B-D
-      // Round 2: A-B, A-D, C-B, C-D
       expect(history.get(getPartnerKey('A', 'C'))).toBe(1);
-      expect(history.get(getPartnerKey('A', 'D'))).toBe(2); // both rounds
-      expect(history.get(getPartnerKey('A', 'B'))).toBe(1); // round 2 only
-      expect(history.get(getPartnerKey('C', 'D'))).toBe(1); // round 2 only
+      expect(history.get(getPartnerKey('A', 'D'))).toBe(2);
+      expect(history.get(getPartnerKey('A', 'B'))).toBe(1);
+      expect(history.get(getPartnerKey('C', 'D'))).toBe(1);
     });
   });
 
@@ -101,7 +116,6 @@ describe('Opponent Uniqueness - Frontend', () => {
       const opponentHistory = new Map<string, number>();
       opponentHistory.set(getPartnerKey('A', 'C'), 1);
 
-      // partner: 2 (A+B) + opponent: 1 (A vs C) = 3
       const score = scoreSplit(['A', 'B'], ['C', 'D'], partnerHistory, opponentHistory);
       expect(score).toBe(3);
     });
@@ -125,13 +139,11 @@ describe('Opponent Uniqueness - Frontend', () => {
       const partnerHistory = new Map<string, number>();
       const opponentHistory = new Map<string, number>();
 
-      // Make A vs C and B vs D very expensive
       opponentHistory.set(getPartnerKey('A', 'C'), 10);
       opponentHistory.set(getPartnerKey('B', 'D'), 10);
       opponentHistory.set(getPartnerKey('A', 'D'), 10);
       opponentHistory.set(getPartnerKey('B', 'C'), 10);
 
-      // {A,B} vs {C,D}: 40, {A,C} vs {B,D}: 20, {A,D} vs {B,C}: 20
       let avoidedWorst = false;
       for (let i = 0; i < 20; i++) {
         const [t1, t2] = optimizeTeamSplit(players, partnerHistory, opponentHistory);
@@ -152,9 +164,6 @@ describe('Opponent Uniqueness - Frontend', () => {
       partnerHistory.set(getPartnerKey('A', 'B'), 5);
       opponentHistory.set(getPartnerKey('A', 'C'), 5);
 
-      // {A,B} vs {C,D}: partner=5 + opponent=5 = 10
-      // {A,C} vs {B,D}: partner=0 + opponent=0 = 0  ← best
-      // {A,D} vs {B,C}: partner=0 + opponent=5 = 5
       const [t1, t2] = optimizeTeamSplit(players, partnerHistory, opponentHistory);
       const score = scoreSplit(t1, t2, partnerHistory, opponentHistory);
       expect(score).toBe(0);
@@ -188,29 +197,20 @@ describe('Opponent Uniqueness - Frontend', () => {
     });
   });
 
-  describe('real-world simulation: 26 players, 6 courts, multi-round', () => {
+  describe('real-world simulation: 27 players, 7 courts (Open Play - DUPR)', () => {
     beforeEach(() => {
       localStorage.clear();
     });
 
-    it('should minimize opponent repeats over 10 rounds with 26 players and 6 courts', async () => {
+    it('should minimize opponent repeats over 10 rounds', async () => {
       const { api } = require('../localStorageApi');
 
-      const league = await api.createLeague('Session Test');
-      const playerNames = [
-        'Uma Desai', 'Frank Miller', 'Isabella Torres', 'Yuki Tanaka',
-        'Henry Patel', 'Vincent Rossi', 'Brian Lee', 'Wendy Chen',
-        'David Kim', 'Karen Brooks', 'Rachel Adams', 'Xavier Morales',
-        'Samuel Ortiz', 'Carla Mendes', 'Tina Zhang', 'Liam OConnor',
-        'Jack Wilson', 'Peter Novak', 'Grace Lin', 'Chris Harper',
-        'Nathan Green', 'Alex Johnson', 'Olivia Park', 'Maya Singh',
-        'Emily Carter', 'Zara Ahmed',
-      ];
-      for (const name of playerNames) {
+      const league = await api.createLeague('Open Play - DUPR');
+      for (const name of DUPR_PLAYERS) {
         await api.addPlayer(league.id, name);
       }
-      for (let i = 1; i <= 6; i++) {
-        await api.addCourt(league.id, `Court ${i}`);
+      for (const court of DUPR_COURTS) {
+        await api.addCourt(league.id, court);
       }
 
       const rounds = [];
@@ -218,14 +218,12 @@ describe('Opponent Uniqueness - Frontend', () => {
         rounds.push(await api.generateRound(league.id));
       }
 
-      // Collect all assignments
       const allAssignments: Assignment[] = [];
       for (const round of rounds) {
         const assignments = await api.getAssignments(round.id);
         allAssignments.push(...assignments);
       }
 
-      // Count opponent frequencies
       const opponentCounts = new Map<string, number>();
       for (const a of allAssignments) {
         for (const p1 of a.team1PlayerIds) {
@@ -239,31 +237,20 @@ describe('Opponent Uniqueness - Frontend', () => {
       const maxOpponentRepeat = Math.max(...opponentCounts.values());
       const pairsOver2 = [...opponentCounts.values()].filter(v => v > 2).length;
 
-      // With 26 players, 6 courts, 10 rounds:
-      // No pair should face each other more than 4 times
+      // 27 players, 7 courts, 10 rounds
       expect(maxOpponentRepeat).toBeLessThanOrEqual(4);
-      // Very few pairs should face each other 3+ times
       expect(pairsOver2).toBeLessThan(30);
     });
 
-    it('should minimize partner repeats over 10 rounds with 26 players and 6 courts', async () => {
+    it('should minimize partner repeats over 10 rounds', async () => {
       const { api } = require('../localStorageApi');
 
-      const league = await api.createLeague('Partner Test');
-      const playerNames = [
-        'Uma Desai', 'Frank Miller', 'Isabella Torres', 'Yuki Tanaka',
-        'Henry Patel', 'Vincent Rossi', 'Brian Lee', 'Wendy Chen',
-        'David Kim', 'Karen Brooks', 'Rachel Adams', 'Xavier Morales',
-        'Samuel Ortiz', 'Carla Mendes', 'Tina Zhang', 'Liam OConnor',
-        'Jack Wilson', 'Peter Novak', 'Grace Lin', 'Chris Harper',
-        'Nathan Green', 'Alex Johnson', 'Olivia Park', 'Maya Singh',
-        'Emily Carter', 'Zara Ahmed',
-      ];
-      for (const name of playerNames) {
+      const league = await api.createLeague('Open Play - DUPR');
+      for (const name of DUPR_PLAYERS) {
         await api.addPlayer(league.id, name);
       }
-      for (let i = 1; i <= 6; i++) {
-        await api.addCourt(league.id, `Court ${i}`);
+      for (const court of DUPR_COURTS) {
+        await api.addCourt(league.id, court);
       }
 
       const rounds = [];
@@ -277,7 +264,6 @@ describe('Opponent Uniqueness - Frontend', () => {
         allAssignments.push(...assignments);
       }
 
-      // Count partner frequencies
       const partnerCounts = new Map<string, number>();
       for (const a of allAssignments) {
         for (const team of [a.team1PlayerIds, a.team2PlayerIds]) {
@@ -291,28 +277,18 @@ describe('Opponent Uniqueness - Frontend', () => {
       }
 
       const maxPartnerRepeat = Math.max(...partnerCounts.values());
-      // No pair should be partners more than 3 times in 10 rounds
       expect(maxPartnerRepeat).toBeLessThanOrEqual(3);
     });
 
-    it('should keep opponent repeats reasonable over 17 rounds (session 4 scale)', async () => {
+    it('should keep opponent repeats reasonable over 17 rounds', async () => {
       const { api } = require('../localStorageApi');
 
-      const league = await api.createLeague('Long Session');
-      const playerNames = [
-        'Uma Desai', 'Frank Miller', 'Isabella Torres', 'Yuki Tanaka',
-        'Henry Patel', 'Vincent Rossi', 'Brian Lee', 'Wendy Chen',
-        'David Kim', 'Karen Brooks', 'Rachel Adams', 'Xavier Morales',
-        'Samuel Ortiz', 'Carla Mendes', 'Tina Zhang', 'Liam OConnor',
-        'Jack Wilson', 'Peter Novak', 'Grace Lin', 'Chris Harper',
-        'Nathan Green', 'Alex Johnson', 'Olivia Park', 'Maya Singh',
-        'Emily Carter', 'Zara Ahmed',
-      ];
-      for (const name of playerNames) {
+      const league = await api.createLeague('Open Play - DUPR');
+      for (const name of DUPR_PLAYERS) {
         await api.addPlayer(league.id, name);
       }
-      for (let i = 1; i <= 6; i++) {
-        await api.addCourt(league.id, `Court ${i}`);
+      for (const court of DUPR_COURTS) {
+        await api.addCourt(league.id, court);
       }
 
       const rounds = [];
@@ -326,7 +302,6 @@ describe('Opponent Uniqueness - Frontend', () => {
         allAssignments.push(...assignments);
       }
 
-      // Opponent frequency
       const opponentCounts = new Map<string, number>();
       for (const a of allAssignments) {
         for (const p1 of a.team1PlayerIds) {
@@ -337,7 +312,6 @@ describe('Opponent Uniqueness - Frontend', () => {
         }
       }
 
-      // Partner frequency
       const partnerCounts = new Map<string, number>();
       for (const a of allAssignments) {
         for (const team of [a.team1PlayerIds, a.team2PlayerIds]) {
@@ -354,56 +328,43 @@ describe('Opponent Uniqueness - Frontend', () => {
       const maxPartner = Math.max(...partnerCounts.values());
       const opponent4xPlus = [...opponentCounts.values()].filter(v => v >= 4).length;
 
-      // Over 17 rounds with 26 players:
-      // Max opponent repeat should stay at 4 or below
       expect(maxOpponent).toBeLessThanOrEqual(5);
-      // Max partner repeat should stay at 3 or below
       expect(maxPartner).toBeLessThanOrEqual(3);
-      // Very few pairs should face each other 4+ times
       expect(opponent4xPlus).toBeLessThan(10);
     });
   });
 
   describe('opponent history with realistic multi-court data', () => {
-    it('buildOpponentHistory correctly counts from session-like data', () => {
-      // Simulate 3 rounds of 6-court play (like the user session data)
+    it('buildOpponentHistory correctly counts from DUPR session-like data', () => {
       const assignments = [
-        // Round 1
-        mkAssignment('r1', 'c1', ['Uma', 'Frank'], ['Isabella', 'Yuki']),
-        mkAssignment('r1', 'c2', ['Henry', 'Vincent'], ['Brian', 'Wendy']),
-        mkAssignment('r1', 'c3', ['David', 'Karen'], ['Rachel', 'Xavier']),
-        mkAssignment('r1', 'c4', ['Samuel', 'Carla'], ['Tina', 'Liam']),
-        mkAssignment('r1', 'c5', ['Jack', 'Peter'], ['Grace', 'Chris']),
-        mkAssignment('r1', 'c6', ['Nathan', 'Alex'], ['Olivia', 'Maya']),
+        // Round 1 — 7 courts
+        mkAssignment('r1', 'c5', ['Chinmay', 'Anand'], ['Angela', 'Bob']),
+        mkAssignment('r1', 'c6', ['Anthony', 'Barbara'], ['Chairmaine', 'Dawne']),
+        mkAssignment('r1', 'c8', ['Dennis', 'Diane'], ['Douglas', 'Gannon']),
+        mkAssignment('r1', 'c9', ['John', 'Joseph'], ['Katie', 'Michael']),
+        mkAssignment('r1', 'c11', ['Mike', 'Morgan'], ['Paul C', 'Paul K']),
+        mkAssignment('r1', 'c12', ['Ram', 'Sebastian'], ['Shiba', 'Vera']),
+        mkAssignment('r1', 'c13', ['Xiaomei', 'Yan'], ['Aimee', 'Diane']),
         // Round 2
-        mkAssignment('r2', 'c1', ['Samuel', 'Tina'], ['Isabella', 'Grace']),
-        mkAssignment('r2', 'c2', ['Emily', 'Vincent'], ['Olivia', 'Carla']),
-        mkAssignment('r2', 'c3', ['Yuki', 'Jack'], ['Xavier', 'Liam']),
-        mkAssignment('r2', 'c4', ['David', 'Nathan'], ['Peter', 'Zara']),
-        mkAssignment('r2', 'c5', ['Wendy', 'Chris'], ['Frank', 'Rachel']),
-        mkAssignment('r2', 'c6', ['Uma', 'Karen'], ['Alex', 'Henry']),
-        // Round 3
-        mkAssignment('r3', 'c1', ['Samuel', 'Grace'], ['Alex', 'Chris']),
-        mkAssignment('r3', 'c2', ['Nathan', 'Henry'], ['Isabella', 'Frank']),
-        mkAssignment('r3', 'c3', ['Liam', 'Emily'], ['Rachel', 'Karen']),
-        mkAssignment('r3', 'c4', ['Carla', 'Jack'], ['Maya', 'David']),
-        mkAssignment('r3', 'c5', ['Wendy', 'Vincent'], ['Olivia', 'Zara']),
-        mkAssignment('r3', 'c6', ['Brian', 'Peter'], ['Uma', 'Tina']),
+        mkAssignment('r2', 'c5', ['Bob', 'Chairmaine'], ['Dennis', 'Gannon']),
+        mkAssignment('r2', 'c6', ['Angela', 'Joseph'], ['Morgan', 'Vera']),
+        mkAssignment('r2', 'c8', ['Anand', 'Katie'], ['Sebastian', 'Yan']),
+        mkAssignment('r2', 'c9', ['Chinmay', 'Douglas'], ['Mike', 'Ram']),
+        mkAssignment('r2', 'c11', ['Barbara', 'Diane'], ['Paul C', 'Xiaomei']),
+        mkAssignment('r2', 'c12', ['Anthony', 'Dawne'], ['John', 'Shiba']),
+        mkAssignment('r2', 'c13', ['Michael', 'Paul K'], ['Aimee', 'Gannon']),
       ];
 
       const oppHistory = buildOpponentHistory(assignments);
       const partHistory = buildPartnershipHistory(assignments);
 
-      // Verify specific opponent counts from the data
-      // Round 1: Uma vs Isabella, Round 2: Uma is NOT vs Isabella → should be 1
-      expect(oppHistory.get(getPartnerKey('Uma', 'Isabella'))).toBe(1);
+      // Chinmay & Anand are partners in round 1 → partner count = 1
+      expect(partHistory.get(getPartnerKey('Chinmay', 'Anand'))).toBe(1);
+      // Chinmay vs Angela in round 1 → opponent count = 1
+      expect(oppHistory.get(getPartnerKey('Chinmay', 'Angela'))).toBe(1);
+      // Chinmay & Anand should NOT be opponents
+      expect(oppHistory.get(getPartnerKey('Chinmay', 'Anand'))).toBeUndefined();
 
-      // Uma & Frank are partners in round 1 → partner count = 1
-      expect(partHistory.get(getPartnerKey('Uma', 'Frank'))).toBe(1);
-      // Uma & Frank should NOT be opponents in round 1
-      expect(oppHistory.get(getPartnerKey('Uma', 'Frank'))).toBeUndefined();
-
-      // All values should be positive integers
       for (const val of oppHistory.values()) {
         expect(val).toBeGreaterThan(0);
         expect(Number.isInteger(val)).toBe(true);
@@ -412,16 +373,13 @@ describe('Opponent Uniqueness - Frontend', () => {
 
     it('opponent and partner histories are disjoint per round', () => {
       const assignments = [
-        mkAssignment('r1', 'c1', ['A', 'B'], ['C', 'D']),
-        mkAssignment('r1', 'c2', ['E', 'F'], ['G', 'H']),
+        mkAssignment('r1', 'c5', ['A', 'B'], ['C', 'D']),
+        mkAssignment('r1', 'c6', ['E', 'F'], ['G', 'H']),
       ];
 
       const oppHistory = buildOpponentHistory(assignments);
       const partHistory = buildPartnershipHistory(assignments);
 
-      // Partner pairs: A-B, C-D, E-F, G-H
-      // Opponent pairs: A-C, A-D, B-C, B-D, E-G, E-H, F-G, F-H
-      // These sets should not overlap
       for (const key of partHistory.keys()) {
         expect(oppHistory.has(key)).toBe(false);
       }

@@ -609,26 +609,29 @@ export const api = {
     log.api.info('seedMockData — creating mock league with players and courts');
     const store = loadStore();
     const now = new Date();
-    const league: League = { id: generateId(), name: 'Morning Open Play', format: LeagueFormat.ROUND_ROBIN, createdAt: now, updatedAt: now };
+    const league: League = { id: generateId(), name: 'Open Play - DUPR', format: LeagueFormat.ROUND_ROBIN, createdAt: now, updatedAt: now };
     store.leagues.push(league);
 
     const names = [
-      'Alex Johnson', 'Brian Lee', 'Carla Mendes', 'David Kim', 'Emily Carter',
-      'Frank Miller', 'Grace Lin', 'Henry Patel', 'Isabella Torres', 'Jack Wilson',
-      'Karen Brooks', 'Liam OConnor', 'Maya Singh', 'Nathan Green', 'Olivia Park',
-      'Peter Novak', 'Rachel Adams', 'Samuel Ortiz', 'Tina Zhang', 'Vincent Rossi',
-      'Wendy Chen', 'Xavier Morales', 'Yuki Tanaka', 'Zara Ahmed', 'Chris Harper', 'Uma Desai',
+      'Aimee Crant Oksa', 'Anand Subramani', 'Angela Evans', 'Anthony Calamusa',
+      'Barbara OConnor', 'Bob Howard', 'Chairmaine Ng', 'Chinmay Mahajan',
+      'Dawne MC', 'Dennis Clarke', 'Diane Cuce', 'Douglas Sr. Fallon',
+      'Gannon Meyer', 'John F', 'Joseph Altomonte', 'Katie Workman',
+      'Michael Lacqua', 'Mike Vidal', 'Morgan Biancamano', 'Paul Capaldo',
+      'Paul Kelahan', 'Ram seridana', 'Sebastian Filipkowski', 'Shiba M',
+      'Vera Koshkina', 'Xiaomei Yin', 'Yan Guo',
     ];
     for (const name of names) {
       store.players.push({ id: generateId(), leagueId: league.id, name, createdAt: now });
       addToPlayerDirectory(name);
     }
-    for (let i = 1; i <= 6; i++) {
-      store.courts.push({ id: generateId(), leagueId: league.id, identifier: `Court ${i}`, createdAt: now });
+    const courtNames = ['Court #5', 'Court #6', 'Court #8', 'Court #9', 'Court #11', 'Court #12', 'Court #13'];
+    for (const courtName of courtNames) {
+      store.courts.push({ id: generateId(), leagueId: league.id, identifier: courtName, createdAt: now });
     }
     saveStore(store);
-    log.api.info('Mock data seeded —', names.length, 'players, 6 courts');
-    return { league, players: names.length, courts: 6 };
+    log.api.info('Mock data seeded —', names.length, 'players,', courtNames.length, 'courts');
+    return { league, players: names.length, courts: courtNames.length };
   },
 
   async clearAllData(): Promise<void> {
