@@ -1515,7 +1515,7 @@ function App() {
                       <button className="buzzer-btn" onClick={() => playBuzzer(true)}>
                         🔔 Buzzer
                       </button>
-                      {sessionMode === 'manual' && allLeagueAssignments?.some(a => a.team1Score != null) && selectedLeague && (
+                      {sessionMode === 'manual' && rounds.length > 0 && selectedLeague && (
                         <button
                           className="export-btn"
                           onClick={() => exportSessionXLSX({
